@@ -13,14 +13,23 @@ This repo is a complete AI toolkit for manufacturing. Every skill is a standalon
 
 | Skill | What it does | Time saved |
 |-------|-------------|------------|
-| 🔬 Quality Report Generator | Turn inspection data into a formatted quality report with trends and corrective actions. | ~25 min/report |
-| 📋 SOP Writer | Draft standard operating procedures from process notes and operator interviews. | ~45 min/SOP |
-| ⏱️ Downtime Analysis Summary | Compile downtime events into a root-cause summary with recommended countermeasures. | ~20 min/analysis |
-| ✉️ Supplier Communication Drafter | Write professional emails for PO confirmations, quality issues, and delivery follow-ups. | ~10 min/email |
-| 🔄 Shift Handoff Report | Summarize production status, open issues, and priorities for the incoming shift. | ~15 min/handoff |
-| 📄 CAPA Document Builder | Structure corrective and preventive action reports with investigation findings and timelines. | ~30 min/CAPA |
+| Downtime Analysis Summary | Compile downtime events into a root-cause summary with recommended countermeasures. | ~20 min/analysis |
+| OEE Analysis Report | Turn raw Overall Equipment Effectiveness (OEE) data — availability, performance, and quality metrics — into a clear analysis report that identifies the biggest loss categories, highlights trends, and recommends targeted improvement actions. | ~45 min/report |
+| Predictive Maintenance Report | Transform equipment sensor data, maintenance logs, and historical failure records into an actionable predictive maintenance report with risk rankings, recommended service windows, and cost-impact estimates. | ~30 min/report |
+| Production Scheduling Optimizer | Take a set of production orders, machine capacities, labor availability, and material constraints and produce an improved short-horizon production schedule that balances due dates, changeover cost, and capacity utilization. | ~60 min/schedule |
+| Quality Report Generator | Turn inspection data (incoming, in-process, final, and customer returns) into a structured quality report with defect Pareto, SPC trend read-outs, Cp/Cpk interpretation where applicable, and prioritized corrective actions — ready for a weekly quality review or management scorecard. | ~25 min/report |
+| SOP Writer | Turn process notes, operator interviews, or tribal knowledge into a controlled, ISO-compliant Standard Operating Procedure that an operator can actually follow on the shop floor — complete with safety callouts, quality checkpoints, PPE requirements, and revision metadata. | ~45 min/SOP |
+| Shift Handoff Report | Turn the outgoing shift's raw notes into a structured, scannable handoff the incoming supervisor can absorb in under 90 seconds — surfacing safety incidents, production counts vs. | ~15 min/handoff |
+| Supply Chain Risk Assessment | Evaluate supplier and material risks across your supply chain and produce a structured risk report with mitigation recommendations, alternative sourcing options, and contingency triggers. | ~45 min/assessment |
+| Vision Inspection Summary | Take the output of an automated computer-vision inspection system — pass/fail counts, defect classifications, confidence scores, and flagged images — and produce a structured summary that quality and operations teams can act on within the same shift. | ~25 min/report |
+| CAPA Document Builder | Structure corrective and preventive action reports with investigation findings and timelines. | ~30 min/CAPA |
+| Compliance Audit Prep | Scan existing SOPs, quality documents, and process records against regulatory requirements to produce an audit-readiness report with gap analysis, remediation priorities, and document update recommendations. | ~60 min/audit prep |
+| Supplier Communication Drafter | Write professional emails for PO confirmations, quality issues, and delivery follow-ups. | ~10 min/email |
+| Email Drafter | Turn rough notes into a professional, ready-to-send email that matches your company's voice and uses correct manufacturing terminology. | ~10 min/use |
+| Meeting Summarizer | Transform raw meeting notes into a structured summary with decisions, action items, owners, and deadlines — formatted for manufacturing teams who need clarity, not fluff. | ~10 min/use |
+| Review Responder | Craft professional, personalized responses to online reviews that reinforce your manufacturing company's reputation for quality, reliability, and expertise. | ~10 min/use |
 
-**Total time saved per use: ~145+ minutes across all skills.**
+**Total time saved per use: ~440+ minutes across all skills.**
 
 ## Quick Start
 
