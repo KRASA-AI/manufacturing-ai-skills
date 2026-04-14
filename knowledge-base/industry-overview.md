@@ -40,6 +40,14 @@ The manufacturing AI landscape is evolving rapidly. Key trends shaping the indus
 
 6. **Digital twin simulation** — Generative AI is being used to simulate thousands of what-if scenarios for production planning, safety stock optimization, and single-source risk identification.
 
+7. **Composite and system-level digital twins** — The frontier in 2026 is moving from component-level twins to composite twins that represent entire lines or factories. Combined with AI agents, these composite twins are compressing root-cause analysis from days to minutes and unlocking closed-loop optimization.
+
+8. **AI-assisted production scheduling** — More than 40% of manufacturers are adopting AI-assisted scheduling that reacts to real-time machine state, workforce availability, and supply variability, treating AI as an assistant to the human scheduler rather than an autonomous controller.
+
+9. **Vision inspection at production scale** — Deep-learning vision systems are now routinely achieving 200–300% ROI on inspection lines by reducing both escape defects and false-reject rework, with summary-and-review workflows emerging as the human-in-the-loop pattern.
+
+10. **OEE intelligence** — Early AI-enhanced-twin adopters are reporting 12–18% OEE improvements within 18 months by pairing structured OEE loss analysis with agentic follow-through on the recommended actions.
+
 ## Learn More
 
 - [Manufacturing AI tools and tutorials](https://krasa.ai/industries/manufacturing)
