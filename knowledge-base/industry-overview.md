@@ -48,6 +48,14 @@ The manufacturing AI landscape is evolving rapidly. Key trends shaping the indus
 
 10. **OEE intelligence** — Early AI-enhanced-twin adopters are reporting 12–18% OEE improvements within 18 months by pairing structured OEE loss analysis with agentic follow-through on the recommended actions.
 
+11. **AI-generated digital work instructions** — The connected-worker category is moving from static PDFs-on-tablets to AI-generated, branching, gated work instructions drawn from SOPs and process video. Platforms are converting implicit tribal knowledge into operator-ready flows with error-proofing logic and measurement validation, shortening time-to-qualified-operator on new stations and compressing cycle-time variance between new and veteran operators.
+
+12. **AI-augmented EHS and near-miss intelligence** — Safety-reporting platforms are using AI to classify incident severity against OSHA thresholds, auto-trigger 8-hour and 24-hour notification clocks, and cluster near-miss signals around recurring work orders, equipment, or crews. Near-miss reporting volumes are rising sharply when the intake friction drops, and sites that raise near-miss reporting 10x are seeing 50–70% reductions in recordable injuries. SIF (serious-injury-or-fatality) precursor detection is emerging as a distinct analytic pattern.
+
+13. **AI-assisted design-for-manufacturability (DFM) loop** — Generative design plus AI design-review agents are closing the loop between engineering and production: candidate designs are generated against constraints, then automatically reviewed for manufacturability, standards compliance, and documentation completeness before a human engineer selects a direction. Reported results include 30–50% faster time-to-market and meaningful weight and cost reductions, with manufacturability addressed at the conceptual phase rather than during late-stage validation.
+
+14. **Exception handling as the agentic bottleneck** — Across multiple 2026 industry guides, exception handling (what the agent does when reality diverges from plan) is named as one of the top five barriers to scaling AI on the plant floor, alongside data quality, system integration, skills capacity, and governance. The emerging pattern is human-in-the-loop escalation with structured routing rather than autonomous recovery.
+
 ## Learn More
 
 - [Manufacturing AI tools and tutorials](https://krasa.ai/industries/manufacturing)
