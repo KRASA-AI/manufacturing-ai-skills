@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: advanced
 time_saved: "~90 min/schedule"
 version: 2.0
-last_eval_score: null
+last_eval_score: 8.7
 ---
 
 # Production Scheduling Optimizer

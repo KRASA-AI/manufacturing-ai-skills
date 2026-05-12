@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~60 min/CAPA"
 version: 2.0
-last_eval_score: 5.7
+last_eval_score: 8.6
 ---
 
 # 📄 CAPA Document Builder

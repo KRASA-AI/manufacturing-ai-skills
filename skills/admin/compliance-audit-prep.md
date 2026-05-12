@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~60 min/audit prep + reduced finding volume"
 version: 2.0
-last_eval_score: 7.9
+last_eval_score: 8.7
 ---
 
 # Compliance Audit Prep

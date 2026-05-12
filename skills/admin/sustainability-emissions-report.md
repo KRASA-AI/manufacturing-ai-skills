@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~3 hr/reporting cycle"
 version: 1.0
-last_eval_score: null
+last_eval_score: 8.8
 ---
 
 # Sustainability & Emissions Report

@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~6 hr/operator (onboarding plan + qualification card + recert schedule)"
 version: 1.0
-last_eval_score: null
+last_eval_score: 8.9
 ---
 
 # Training Plan & Skill Matrix Generator

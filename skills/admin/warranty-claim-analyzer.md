@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~25 min/claim + ~2 hr/weekly pattern review"
 version: 1.0
-last_eval_score: null
+last_eval_score: 8.6
 ---
 
 # Warranty Claim Analyzer

@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~45 min/assessment + avoided line-down hours"
 version: 2.0
-last_eval_score: 7.7
+last_eval_score: 8.7
 ---
 
 # Supply Chain Risk Assessment

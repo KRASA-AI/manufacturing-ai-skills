@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: advanced
 time_saved: "~6 hr/incident (first 24 h)"
 version: 1.0
-last_eval_score: null
+last_eval_score: 8.8
 ---
 
 # OT Cybersecurity Incident Response Playbook

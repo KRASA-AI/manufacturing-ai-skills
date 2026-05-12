@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: beginner
 time_saved: "~25 min/report"
 version: 3.0
-last_eval_score: 8.7
+last_eval_score: 9.1
 ---
 
 # Quality Report Generator

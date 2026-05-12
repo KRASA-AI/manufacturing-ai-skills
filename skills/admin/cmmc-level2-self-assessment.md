@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: advanced
 time_saved: "~3 day/cycle (gap analysis + evidence map + scoring + SPRS submission package)"
 version: 1.0
-last_eval_score: null
+last_eval_score: 8.8
 ---
 
 # CMMC Level 2 Self-Assessment & SPRS Score Prep

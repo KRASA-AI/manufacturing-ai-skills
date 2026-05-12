@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: beginner
 time_saved: "~15 min/handoff"
 version: 2.0
-last_eval_score: 4.5
+last_eval_score: 8.6
 ---
 
 # Shift Handoff Report

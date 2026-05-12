@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~15 min/email"
 version: 2.0
-last_eval_score: 4.9
+last_eval_score: 8.6
 ---
 
 # ✉️ Supplier Communication Drafter

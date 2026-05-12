@@ -5,7 +5,7 @@ tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~2 hrs/instruction set"
 version: 2.0
-last_eval_score: 8.7
+last_eval_score: 8.9
 ---
 
 # Work Instruction Generator
