@@ -4,8 +4,8 @@ category: operations
 tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~45 min/assessment + avoided line-down hours"
-version: 2.0
-last_eval_score: 8.7
+version: 3.0
+last_eval_score: 8.5
 ---
 
 # Supply Chain Risk Assessment
@@ -30,9 +30,22 @@ Use this skill when:
 
 This skill is an **advisory** artifact. It does not replace supplier-quality audits or financial-health subscriptions — it is the synthesis layer that combines those inputs with the plant's own bill-of-materials and production plan.
 
+## Execution Modes
+
+A full seven-dimension assessment of an entire supplier base is a multi-day data-gathering exercise that few SMBs can assemble in one shot — and they should not have to, because most of the risk lives in a small critical subset. Run the assessment in two passes and state which one is producing the current output.
+
+- **Triage Pass (always run first, minimal inputs).** Inputs: the supplier roster (name, tier, country) and, per item, three signals that almost every plant already has — **single-source flag (Y/N), annual spend, and OTIF trend (improving / flat / declining)**. Pull these from `config.yml` (critical-material list and tiered roster) plus the most recent scorecard wherever available. Rank the whole roster with a fast proxy score = single-source weight × spend band × OTIF-trend penalty, and output a heat-map that nominates the **critical few (typically 10–20%)** for the deep-dive. The Triage Pass needs no financial subscriptions, no CBAM data, and no tier-2 mapping — it exists precisely to tell you which suppliers are worth gathering all of that for. This is the mode that gets a useful artifact in front of a quarterly review in under an hour.
+- **Deep-dive Pass (the critical few only).** Run the full seven-dimension taxonomy, Likelihood × Severity matrix, tier-2 mapping, CBAM and forced-labour blocks, contingency triggers, and mitigation playbook **only on the suppliers the Triage Pass flagged**, plus any customer-specified or single-sourced item regardless of spend. Scope the deep-dive to that shortlist explicitly rather than implying the whole base was assessed at depth.
+
+If the user asks for "a supply chain risk assessment" with no scope, run the Triage Pass first, present the shortlist, and ask which subset to deep-dive — do not demand the full eight-category input set up front.
+
+## Config Pre-Population
+
+Before asking the user for anything, read `config.yml` and pre-fill what it already holds, so the required-input list below shrinks to what is genuinely missing. Expect to find, and use without re-asking: plant name and currency of record; the **critical-material list** and **tiered supplier roster** (drives Triage scope); the **CBAM exposure flag** and which CN-code families apply; the **financial-data subscription source** (D&B / Rapid Ratings / CreditSafe) and its vintage; the **customer CSR framework list** (GM SPQR, Ford Q1, Boeing D1-9000, etc.); and voice. State which fields came from config and which the user still needs to supply — never silently re-request data the config already carries.
+
 ## Required Input
 
-Provide the following. Anything missing goes into the gaps block, not a guess.
+Provide the following. The **Triage Pass needs only items 1–2 (roster + the three triage signals)**; the rest are gathered only for the critical few in the Deep-dive Pass. Anything missing goes into the gaps block, not a guess.
 
 1. **Supplier roster** — Supplier name, DUNS / registration ID, tier (1 / 2 / 3 as known), country of origin, country of manufacture (can differ from country of origin), plant address when known, parent-company ownership, ISO / IATF / AS9100 / ISO 13485 certification status and expiry, OEM / industry approval status
 2. **Material / part criticality** — For each supplied item: part number, material family, spend per year, annualised volume, current on-hand days-of-supply, single-sourced vs dual / multi-sourced, time-to-qualify an alternate (weeks), customer-specified supplier (Yes / No + which customer), tooling ownership
@@ -62,7 +75,7 @@ You are a supply-chain risk analyst writing an assessment that the CPO will defe
    - **Geographic concentration** — country + plant + logistics-chokepoint concentration
    - **Lead-time volatility** — trailing-12-month lead-time range vs commitment; every premium-freight incident counts
    - **Quality history** — PPM, SCAR count, escape rate, customer-complaint traceability to this supplier
-   - **Financial stability** — subscription-sourced rating + trend; DSO drift; recent events
+   - **Financial stability** — subscription-sourced rating + trend; DSO drift; recent events. *Fallback when no D&B / Rapid Ratings / CreditSafe data exists (common for small or private suppliers): do not skip the dimension and do not stall — score a documented proxy from the signals you do have (payment-term-extension requests, sudden lead-time stretch, partial shipments, requests for early payment or deposits, key-staff departures, tooling-payment delays) and label the score "proxy — no subscription data; verify before acting." A proxy score that flags a wobbling supplier beats a blank cell.*
    - **Geopolitical exposure** — sanctions / tariffs / export-control listing, country risk rating, sector-specific allocation exposure
    - **Regulatory / ESG** — CBAM embedded-emissions exposure (iron, steel, aluminium, cement, fertilisers, hydrogen, electricity), UFLPA / forced-labour exposure, REACH / RoHS, conflict-minerals smelter status
 
@@ -134,6 +147,25 @@ You are a supply-chain risk analyst writing an assessment that the CPO will defe
 - **Pairs with CAPA Document Builder** — a repeated supplier-caused escape opens a CAPA on the supplier-approval process, not just on the supplier.
 - **Pairs with Warranty Claim Analyzer** — supplier-caused warranty clusters feed back into the quality-history dimension.
 - Most mid-market sites source inputs from Coupa Risk Assess, Riskmethods (now Sphera), Interos, Resilinc, Everstream Analytics, D&B Supplier Risk, Rapid Ratings, or an internal combination of Excel + D&B + customer scorecards. If the target system is known, produce its field layout. Otherwise produce platform-neutral markdown with a CSV-compatible supplier-risk table.
+
+## Example Output (abridged Triage Pass)
+
+> **Mode:** Triage Pass over 84 active suppliers · proxy = single-source × spend band × OTIF-trend · no financial/CBAM/tier-2 data gathered yet (by design). Config supplied roster, tiers, and critical-material list.
+>
+> **Critical few nominated for deep-dive (8 of 84):**
+>
+> | Supplier | Tier | Single-source | Annual spend | OTIF trend | Proxy | Why flagged |
+> |---|---|---|---|---|---|---|
+> | Hangzhou Magnetics | 2 | Y | $1.4M | declining | **High** | Sole NdFeB magnet source, OTIF 91→83% |
+> | Gulf Coast Castings | 1 | Y | $2.1M | flat | **High** | Sole-source tooling held by supplier |
+> | Rheinmetall Bar | 1 | N | $3.0M | declining | **Med-High** | Spend + declining OTIF despite 2 sources |
+> | … (5 more) | | | | | | |
+>
+> **Not flagged (76):** routine/leverage quadrant — quarterly watch only, no deep-dive this cycle.
+>
+> **Recommended deep-dive scope:** the 8 above + any customer-specified supplier (none in the flagged set) → run full seven-dimension + tier-2 + CBAM + forced-labour on these 8.
+>
+> **Gaps before deep-dive:** financial-subscription data is >6 months old on Gulf Coast Castings; Hangzhou Magnetics tier-2 (raw NdPr oxide origin) not yet visible — likely XUAR-adjacent, confirm before the forced-labour block.
 
 ## Success Metrics
 

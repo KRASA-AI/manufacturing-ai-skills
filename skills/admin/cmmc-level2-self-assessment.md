@@ -4,8 +4,8 @@ category: admin
 tools: [claude, chatgpt]
 difficulty: advanced
 time_saved: "~3 day/cycle (gap analysis + evidence map + scoring + SPRS submission package)"
-version: 1.0
-last_eval_score: 8.8
+version: 2.0
+last_eval_score: 8.5
 ---
 
 # CMMC Level 2 Self-Assessment & SPRS Score Prep
@@ -31,9 +31,18 @@ Use this skill when:
 
 Do not use this skill as a substitute for an Authorized C3PAO assessment when one is contractually required, for a Registered Practitioner Organization (RPO) advisory engagement, or for outside counsel on FCA exposure. Treat the output as the internal artifact that goes into those engagements.
 
+## Execution Modes
+
+A full evidence-anchored 110-control package requires an evidence library that no team has sitting ready on day one — demanding it up front means the skill produces nothing until weeks of collection are done. Run it in two passes and state which is producing the current output.
+
+- **Quick-Score Triage (always available first, minimal inputs).** Inputs: the **CUI scope/boundary** (which systems and facilities touch CUI), a **rough asset picture**, and a **rapid self-rating** of each of the 110 requirements as Implemented / Partial / Not / N-A based on what the team knows today — no evidence artifacts required yet. The skill returns a **provisional SPRS score** (110 minus the per-objective 1/3/5-point deductions for everything not rated Implemented), a per-family heat map, the **prioritized gap list ordered by point value** (close the 5-point and 3-point gaps first — they cannot be POA&M'd), and an estimate of how far the site is from the 88 conditional threshold and from 110. This is the artifact a bid team needs to know in an afternoon whether a solicitation is reachable. Mark every Implemented rating "self-asserted, evidence pending" — a Quick-Score is a planning number, not a submittable score.
+- **Full Package (submission-grade).** All eight input categories below, including the evidence library. Every Implemented claim carries its Document/Record/Interview/Observation anchors, the POA&M is built only against POA&M-eligible 1-point items, the senior-official affirmation chain is verified, and the output is SPRS-submission-ready. Only the Full Package produces a score anyone should affirm.
+
+If the user has not assembled the evidence library, run Quick-Score Triage rather than stalling on the full input list, and hand back the prioritized gap list as the collection roadmap into the Full Package.
+
 ## Required Input
 
-Provide the following. Anything missing goes into the gaps block rather than being assumed.
+For **Quick-Score Triage**, only items 1 (scope), a rough cut of 2 (assets), and the team's self-rating are needed. For the **Full Package**, provide all eight, with item 4 (the evidence library) being the long pole. Pre-fill entity/CAGE/UEI/provider/CUI-source fields from `config.yml` before asking. Anything missing goes into the gaps block rather than being assumed.
 
 1. **Scope and CUI footprint** — Defined assessment boundary, CUI categories handled (CTI, NOFORN, ITAR, EAR99, etc.), source of CUI (which customer / contract), CUI lifecycle steps (receive, process, store, transmit, destroy), in-scope facilities, in-scope systems / applications, in-scope user populations, in-scope service providers (cloud, MSSP, MSP)
 2. **System Security Plan source material** — Existing SSP if any, network diagram (with CUI flow), data-flow diagram, asset inventory (servers, workstations, mobile, network devices, OT bridges into IT), enclave / segmentation architecture, identity store(s), endpoint protection coverage, MFA coverage, encryption at rest and in transit posture, logging and SIEM coverage
@@ -43,6 +52,21 @@ Provide the following. Anything missing goes into the gaps block rather than bei
 6. **Prior SPRS posture** — Last self-assessed score, date of last self-assessment, supporting senior-official affirmation, any prior C3PAO findings or DCMA review notes
 7. **Contract context** — Active DoD prime / sub contracts in scope, customer-imposed flow-downs (CMMC level, NIST SP 800-171 referenced version, DFARS 7012 cyber-incident reporting clock), any DOD program-specific overlays (e.g., higher-watermark programs)
 8. **Organization context** — Senior official accountable for the affirmation (typically CEO, COO, CISO, or designated equivalent), assessor of record (internal lead, RPO support if any), C3PAO scheduled or pending if applicable
+
+## The Manufacturing CUI Footprint (scope this before anything else)
+
+A generic IT-side CMMC template scopes email, file shares, and laptops and stops there. In a DIB **manufacturing** site the controlled data lives in places an office-IT assessor never looks, and missing them is the single most common reason a manufacturer's self-assessment fails a C3PAO. Walk every one of these explicitly when confirming scope and the asset inventory:
+
+- **Engineering workstations and CAD/CAM seats** holding controlled drawings, models, and technical data packages (TDPs) — often the highest concentration of CUI in the building, frequently on un-enclaved engineering VLANs.
+- **CNC controllers, PLCs, and machine HMIs** whose part programs, post-processor outputs, and G-code embed controlled geometry and tolerances — controlled *design* data sitting on shop-floor devices that cannot run an EDR agent.
+- **DNC / program-distribution servers and shop-floor file shares** that push programs to machines — a classic unmanaged CUI store.
+- **MES, historian, and quality systems (CMM output, FAIR/AS9102 packages)** that may carry controlled dimensional or process data.
+- **CAM post and simulation outputs, fixture/tooling drawings, and supplier TDP transfers** moving to subcontractors (a flow-down trigger).
+- **ITAR / EAR technical data** on any of the above — export-control overlay on top of CUI, with US-person access controls that go beyond NIST 800-171.
+- **OT-to-IT bridges, jump hosts, and removable media** used to move programs to air-gapped or legacy machine controls — the place encryption-in-transit and media-protection findings cluster.
+- **Vendor remote-access paths into machine controls** (OEM diagnostics, predictive-maintenance sensor gateways) that touch the OT enclave.
+
+Score these as in-scope assets with explicit risk acceptance where a control (e.g., FIPS-validated encryption, EDR) is technically infeasible on a legacy controller — do not silently exclude them. The boundary diagram must show the CUI flow through engineering, the DNC path, and the OT bridge, not just the office network.
 
 ## Instructions
 
@@ -117,6 +141,25 @@ You are the CMMC assessment lead writing the package that will go into SPRS and 
 - **Pairs with Tariff Impact Analysis** — DoD-program subcontractors with imported components face both DFARS specialty-metals (Berry Amendment, DFARS 252.225-7008 / 7009) and Section 232 exposure on the same SKUs; both belong in the program-of-record briefing for a regulated bid.
 - **Pairs with Supplier Communication Drafter** — the flow-down notification to the company's own subcontractors (when CUI moves further down the chain) is a message pattern the drafter already handles; this skill produces the underlying determination of what flows where.
 - Most SMB DIB suppliers run one of Microsoft 365 GCC / GCC High, Google Workspace with controls overlay, or a hybrid with a CUI enclave on top of a commercial tenant. If the target stack is known, produce the control-mapping keyed to its native shared-responsibility matrix; otherwise produce platform-neutral markdown plus a CSV block keyed on requirement / status / evidence / deduction / POA&M.
+
+## Example Output (abridged Quick-Score Triage)
+
+> **Mode:** Quick-Score Triage · self-asserted ratings, **evidence pending** — this is a planning number, NOT a submittable score. Entity/CAGE/UEI pre-filled from config.yml.
+>
+> **Provisional SPRS score: 62 / 110.** Distance to 88 conditional threshold: **26 points**. Distance to perfect: 48.
+>
+> **Per-family heat map (worst first):** 3.13 SC&P (−21, MFA/encryption gaps on DNC + OT bridge) · 3.5 I&A (−12) · 3.3 A&A (−9, logging misses engineering VLAN) · 3.1 AC (−8) · rest green/yellow.
+>
+> **Close-first gap list (by point value — 5s and 3s cannot be POA&M'd):**
+> 1. **3.13.11** FIPS-validated crypto for CUI in transit — *5 pt* — DNC pushes to machines in clear text. Must close before scoring.
+> 2. **3.13.16** Protect CUI at rest — *5 pt* — engineering CAD share unencrypted.
+> 3. **3.5.3** MFA — *5 pt* — service accounts on DNC server exempt.
+> 4. **3.3.1 / 3.3.2** audit logging — *3 pt each* — engineering VLAN not forwarding to SIEM.
+> 5. … remaining 1-pointers are POA&M-eligible *if* the score reaches ≥88 first.
+>
+> **Read:** the site is not bid-eligible on a clause that requires a current ≥88 score until the three 5-point SC&P/I&A gaps on the engineering and OT paths close — which is exactly the manufacturing CUI footprint a generic IT scope would have missed. Estimated remediation to 88: ~60–90 days.
+>
+> **Next step:** convert this gap list into the evidence-collection roadmap and run the Full Package once SC&P remediation is in place.
 
 ## Success Metrics
 

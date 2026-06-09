@@ -4,8 +4,8 @@ category: operations
 tools: [claude, chatgpt]
 difficulty: advanced
 time_saved: "~90 min/schedule"
-version: 2.0
-last_eval_score: 8.7
+version: 3.0
+last_eval_score: 8.3
 ---
 
 # Production Scheduling Optimizer
@@ -31,13 +31,28 @@ Use this skill when:
 
 Do not use this skill as an autonomous scheduling controller, an MES-side dispatcher, or a substitute for an APS engagement. Treat the output as the first-pass plan a human scheduler refines.
 
+## What This Skill Is — and Is Not
+
+Be honest about the mechanism, because over-claiming is the fastest way to lose a scheduler's trust. A language model does **not** solve the finite-capacity, sequence-dependent, combinatorial scheduling problem to optimality — that is what an APS solver (PlanetTogether, Asprova, Opcenter APS) does with a real optimization engine. What this skill does is apply a **transparent dispatch-rule heuristic** (earliest-due-date, critical-ratio, shortest-processing-time, or a stated hybrid) on the bottleneck, group changeovers by family, check material/labor/tooling feasibility, and show its reasoning so a human scheduler can accept, adjust, or reject every sequence in minutes instead of building the first pass from a blank spreadsheet.
+
+So: the output is a **defensible first-pass sequence with the reasoning exposed and a stated confidence level**, not a proven optimum. Every schedule this skill produces names the dispatch rule it applied, the assumptions it made, and a confidence rating — so the planner knows exactly how much to trust each block. A schedule that says "I sequenced this EDD on the bottleneck, here are the three places that decision costs changeover hours, confidence: medium because the changeover matrix was simplified" is worth more than a falsely precise Gantt that hides its method.
+
+## Execution Modes
+
+Pick the mode that matches the inputs actually on hand, so the skill produces something useful even when the full data set is not assembled. Always state which mode is running at the top of the output.
+
+- **Quick Pass (default when inputs are partial).** Minimum inputs: the order book (with due dates and priority tier), the known or obvious bottleneck resource, and the ranked objectives. The skill applies the single best-fit dispatch rule (EDD for on-time-dominant objectives, critical-ratio for due-date-weighted, SPT for throughput-dominant), groups changeovers using the same/similar/different-family simplification with documented default setup bands, and returns a sequenced bottleneck plan, an at-risk list, and an explicit "to firm this up, provide X" list. Confidence is capped at **medium**. This is the mode a planner runs against a tier board in five minutes.
+- **Full Pass (when the full input set is available).** All eight input categories below. Computes the bottleneck from load/capacity ratios rather than taking it as given, uses the real changeover matrix, verifies material against MRP buckets and labor/tooling against the skill matrix, and scores schedule stability against the prior plan. Confidence can reach **high** where the inputs are clean.
+
+If the user does not say which mode they want, infer it from what they provided: if any of the order book, bottleneck, or objectives is missing, ask only for those three (not the full eight) and run Quick Pass; do not block a Quick Pass on Full-Pass inputs.
+
 ## Required Input
 
-Provide the following. Anything missing goes into the gaps block rather than being assumed.
+For **Quick Pass**, only items 1, 2 (resources + run rates only), and 6 are required; everything else is optional and improves the result. For **Full Pass**, provide all eight. Anything missing goes into the gaps block rather than being assumed.
 
-1. **Order book** — Work orders / jobs with quantity, routing, due date, customer, priority tier, hot-list flag, ship-set linkage if any
+1. **Order book** — Work orders / jobs with quantity, routing, due date, customer, priority tier, hot-list flag, ship-set linkage if any *(Quick Pass: required)*
 2. **Capacity** — Resources available (machines, cells, lines), run rates per product (units / hr or hr / unit), planned downtime / PM windows, qualified-operator coverage per shift, tooling shared across resources
-3. **Changeover matrix** — Setup time between product families (or a "same family / similar family / different family" simplification with quantified hours), any sequence-dependent setups (e.g., light-to-dark only), tooling change vs. clean-out vs. validation requirements
+3. **Changeover matrix** — Setup time between product families (or a "same family / similar family / different family" simplification with quantified hours), any sequence-dependent setups (e.g., light-to-dark only), tooling change vs. clean-out vs. validation requirements. *If no matrix is supplied (common in Quick Pass), apply the documented default band — same family ≈ 0.25 h, similar family ≈ 1 h, different family ≈ 2 h — clearly labelled as a placeholder default, and list "confirm real changeover times" in the gaps block. Never present default bands as measured.*
 4. **Material constraints** — On-hand, on-order with promise dates, MRP-bucket coverage per BOM line, any quality-hold or expiring-shelf-life lots, customer-supplied / consignment material readiness
 5. **Labor constraints** — Headcount per shift, skill / certification matrix per resource, planned absences, overtime authorization status
 6. **Objectives ranked** — For example: 1) on-time delivery to top-tier customers, 2) minimize changeover hours, 3) hold schedule stability, 4) level labor load, 5) protect WIP turns
@@ -72,6 +87,7 @@ You are the scheduling assistant the production planner runs the first pass thro
 
 ## Output Requirements
 
+- **Mode & method line (first line of output):** which mode ran (Quick Pass / Full Pass), the dispatch rule applied (EDD / critical-ratio / SPT / stated hybrid) and why it was chosen for the stated objective ranking, and an overall **confidence rating (high / medium / low)** with the one or two assumptions that most constrain it (e.g., "medium — changeover matrix is default-band, not measured"). This line is mandatory; a schedule without a stated method and confidence is not a deliverable.
 - **Header:** plant, planner, planning horizon (start / end), shop type, MTS / MTO / ATO / ETO posture, primary-objective ranking, prior-plan reference
 - **Bottleneck call-out:** identified bottleneck resource, load ratio (demand-hours / capacity-hours) for the horizon, runner-up if within 5%
 - **Schedule (Gantt-shaped):** per resource — time block, work order, customer, product, quantity, setup-from / setup-to, setup hours, run hours, bottleneck flag
@@ -106,6 +122,26 @@ You are the scheduling assistant the production planner runs the first pass thro
 - **Pairs with Shift Handoff Report** — the schedule's bottleneck flag and at-risk list are the inputs the next-shift handoff is built from.
 - **Pairs with Supplier Communication Drafter** — material-blocked orders that need a supplier expedite or alternate-source ask use that skill's expedite template.
 - Most SMB manufacturers run one of MRP-only (no APS), an embedded APS module on top of an ERP (NetSuite Demand Planning, SAP IBP / DS, Oracle ASCP), or a dedicated APS (PlanetTogether, Siemens Opcenter APS, Asprova, Logility, Kinaxis, Fishbowl). If the target stack is known, produce the export keyed to its work-order / resource / setup-matrix schema; otherwise produce platform-neutral markdown plus a CSV block keyed on resource / time-block / work-order / setup-from / setup-to / qty / bottleneck-flag.
+
+## Example Output (abridged Quick Pass)
+
+> **Mode & method:** Quick Pass · dispatch rule: **EDD** (objective #1 is OTIF to top-tier customers) · **confidence: medium** — changeover times are default bands, not measured; material readiness not verified against MRP this pass.
+>
+> **Bottleneck:** CNC Cell 2 (taken as given; not load-verified in Quick Pass). 5 jobs routed through it this horizon.
+>
+> **Sequence on CNC Cell 2 (Tue day shift):**
+> 1. WO-4471 · Acme (Tier 1) · 320 pc · due Wed — *run first, tightest due date*
+> 2. WO-4488 · Acme (Tier 1) · 150 pc · due Wed — *same family as 4471, ~0.25 h setup saved vs. splitting*
+> 3. WO-4452 · Boron (Tier 2) · 600 pc · due Thu — *different family, ~2 h setup (default band)*
+> 4. WO-4490 · Delco (Tier 2) · 200 pc · due Fri
+>
+> **Family grouping saved ≈ 0.75 h** of setup vs. strict EDD by keeping 4471/4488 adjacent — no top-tier due date pushed.
+>
+> **At-risk:** WO-4467 · Castle (Tier 2) · due Thu · projected Fri — biggest constraint: **capacity** (CNC Cell 2 full Tue–Thu). Mitigation: pull to CNC Cell 1 if operator certified, else re-promise.
+>
+> **To firm this up (gaps):** real changeover matrix; operator certification on CNC Cell 1; MRP coverage on WO-4452 bar stock.
+>
+> **For the planner:** authorize Cell 1 overtime Thu to recover WO-4467? (not assumed)
 
 ## Success Metrics
 
