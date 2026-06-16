@@ -4,8 +4,8 @@ category: admin
 tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~4 hr/product family"
-version: 1.0
-last_eval_score: 8.8
+version: 2.0
+last_eval_score: 8.3
 ---
 
 # Tariff Impact Analysis
@@ -15,6 +15,30 @@ last_eval_score: 8.8
 Turn a product line, BOM, or inbound shipment schedule into a defensible duty-exposure analysis and a response plan. The skill stacks base duty, Section 232 (steel, aluminum, copper, derivatives, pharma), Section 301 (China), Chapter 99, and antidumping/countervailing duties per SKU; screens each line for duty drawback eligibility and Trade Agreement Partner (TAP) carve-outs; flags US-origin metal claims that can unlock the 10% rate; and produces the three communications the change usually triggers — a customer price-adjustment letter, a supplier requalification / alternate-source ask, and a leadership one-pager on margin and cash exposure.
 
 The skill exists because the April 2026 Section 232 restructuring moved duty calculation from the declared metal content value to the full customs value of the derivative article, collapsed the prior exemption patchwork, and set a 15% minimum combined rate through 2027 on products whose Column 1 rate was under 15%. A part that a controller last modeled at a few percent of landed cost may now carry a 50% duty on its entire customs value, and the first signal of that miscalibration is usually a customs broker invoice or a customer dispute — not an internal model.
+
+## What This Is / Is Not
+
+- **It IS** an internal duty-exposure analysis: a fast screen to find *which* SKUs are materially exposed, then a defensible per-SKU brief on the exposed few.
+- **It IS NOT** a customs filing, a binding ruling, or licensed brokerage. The output goes *into* the broker / trade-counsel conversation; it does not replace it.
+- **It IS NOT** an all-SKUs-at-full-depth exercise on the first run. Run the Quick Exposure Screen, let it nominate the high-exposure lines, then deep-dive only those.
+
+## Two-Pass Execution Model
+
+**Pass 1 — Quick Exposure Screen (minimal input, one-shot).** With just a SKU/BOM list, a rough country-of-origin per line, and an approximate customs value per unit (plus the config-prefilled importer/HTS-chapter/origin defaults below), produce a fast exposure ranking: for each SKU a coarse tariff-stack estimate (base + most-likely Section 232 tier + most-likely Section 301 list) and an annual exposure-dollar band, sorted to surface the **few lines that carry most of the duty**. This is the screen a controller can run cold to answer "where am I bleeding, roughly?" before assembling broker data. Pass 1 explicitly labels every rate "estimate — confirm in Pass 2," because the screen uses most-likely classifications, not verified ones.
+
+**Pass 2 — Full Per-SKU Brief (heavy input).** Run the full process below *only on the SKUs Pass 1 flagged as material* (typically the 20% of lines carrying ~80% of exposure). Pass 2 is where verified HTS classification, origin-substantiation chains, drawback tiers, supplier/customer matrices, and the communications set live. Do not run the full 10-input brief on a 200-SKU book when 18 SKUs carry the exposure.
+
+### Config Pre-Population (run before either pass)
+
+Pull these from `config.yml` so the user is never re-entering standing facts — this is what makes the screen one-shot:
+
+- `importer_of_record`, `customs_broker_contact`, `drawback_program_status` → header + drawback posture pre-filled
+- `primary_hts_chapters` → narrows the classification search space for the screen
+- `dominant_origins` → seeds the country-of-origin and metal-origin defaults per SKU (user overrides only the exceptions)
+- `existing_drawback_program` → sets whether the drawback screen is "quantify new opportunity" or "extend existing claim"
+- `tariff_passthrough_default` (auto-pass / notice-and-discuss / fixed-price) → seeds the customer-side matrix so only non-standard contracts need manual entry
+
+Anything not in config goes to the gaps block; the screen still runs on config defaults + the rough inputs.
 
 ## When to Use
 
@@ -57,7 +81,7 @@ You are a trade-compliance analyst writing a tariff-exposure brief that a CFO an
 - Reference `knowledge-base/best-practices/` for GRI sequencing (General Rules of Interpretation 1 → 6), first-sale valuation posture, and the substantial-transformation / tariff-shift tests
 - Do not fabricate HTS codes, Chapter 99 codes, or Federal Register citations. If a code is uncertain, mark it "classification candidate — binding ruling recommended" and list the tie-breaker GRI
 
-**Process:**
+**Process (Pass 2 — full per-SKU brief; run only on the SKUs Pass 1 flagged material):**
 
 1. **Confirm classification.** For each SKU, restate the 10-digit HTS and the GRI chain that supports it. Flag any classification that is based on a 20-year-old sample or a pre-restructure binding ruling as "revalidate before next entry." If two codes are plausible, list both with the GRI tie-breaker and the duty-rate delta.
 2. **Build the tariff stack.** Per SKU, lay out: Column 1 base rate, Chapter 99 overlay(s), Section 232 (covered / derivative / article / floor), Section 301 list and rate, AD/CVD case and rate if applicable, other Chapter 99 (232 pharma, 232 semiconductor, etc.), MPF, HMF. Show each as a percent, a per-unit $, and a per-entry $.
@@ -102,8 +126,29 @@ You are a trade-compliance analyst writing a tariff-exposure brief that a CFO an
 - **Pairs with Production Scheduling Optimizer** — when a duty change makes a supplier uneconomic and an alternate is not yet qualified, the schedule optimizer carries the near-term trade-off (run-down vs. starve-out vs. expedite) until qualification completes.
 - Most mid-market importers run one of SAP GTS, Descartes, Thomson Reuters ONESOURCE Global Trade, or a broker portal (C.H. Robinson, Flexport, Expeditors, Livingston). If the target system is known, produce its classification fields; otherwise produce platform-neutral markdown plus a CSV block keyed on SKU / HTS / Chapter 99 / origin / rate / per-unit $.
 
+## Worked Example — Pass 1 Quick Exposure Screen
+
+**Input (minimal):** 60-SKU import book; config pre-fills importer of record = "Acme Fab LLC", `primary_hts_chapters` = [73, 76, 84], `dominant_origins` = {CN: 0.55, MX: 0.25, KR: 0.20}; rough customs value per unit supplied as a CSV; no broker data, no mill certs yet.
+
+**Pass 1 output (estimate — confirm in Pass 2):**
+
+> **Screen ranked by annual exposure band (top of 60 SKUs):**
+> | SKU | Origin (default) | Likely stack (est.) | Annual customs value | Exposure band (est.) |
+> |---|---|---|---|---|
+> | A-1180 (steel derivative) | CN | Col1 ~2.9% + **S232 derivative full-value ~50%** + S301 List 3 25% | $1.4M | **~$1.05M/yr — CRITICAL** |
+> | A-2245 (aluminum extrusion) | CN | Col1 ~5% + **S232 alum full-value ~50%** + S301 25% | $640K | **~$510K/yr — CRITICAL** |
+> | A-3310 (steel fastener) | MX | Col1 ~0% + USMCA path + S232 watch | $900K | **~$0–135K — REVIEW (origin/USMCA)** |
+> | B-0070 (electronic sub-assy) | KR | Col1 ~0% (KORUS) + no S232 | $1.1M | **~low — likely immaterial** |
+> | (56 SKUs below $25K est. exposure) | — | — | — | **screened out of Pass 2** |
+>
+> **Verdict:** 2 SKUs (A-1180, A-2245) carry ~$1.56M of the ~$1.7M estimated annual exposure. **Deep-dive these two in Pass 2** (verify HTS, pursue US-origin-metal 10% substantiation, model drawback on the exported share, and check the USMCA path on A-3310). The remaining 56 SKUs are immaterial — do not run the full brief on them.
+> *All rates are most-likely estimates from config defaults, not verified classifications. Section 232 derivative full-value basis per the April 2026 restructuring; confirm the exact derivative-list status and Chapter 99 overlay per SKU in Pass 2.*
+
+A controller gets a defensible "where's the money" answer in one pass from a SKU list and config — and Pass 2 runs on 2 SKUs instead of 60.
+
 ## Success Metrics
 
+- **Quick-screen one-shot rate:** target a usable exposure ranking from SKU list + config in a single pass, with < 20% of the book carried into the full Pass 2 brief
 - **Broker / trade-counsel edits on brief:** target under 10% of line items flagged for revision by the external reviewer after cycle two
 - **Classification revalidation cycle time:** target under 10 business days from scope to signed-off HTS list on a 50-SKU product family
 - **Duty-delta capture:** target 95%+ of the actual invoiced-duty delta explained by the brief (reconcile monthly against the 7501 summary)

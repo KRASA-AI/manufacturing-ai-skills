@@ -4,8 +4,8 @@ category: admin
 tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~25 min/claim + ~2 hr/weekly pattern review + ~3 hr/quarterly reserve review"
-version: 2.0
-last_eval_score: 9.0
+version: 3.0
+last_eval_score: 8.3
 ---
 
 # Warranty Claim Analyzer
@@ -13,6 +13,30 @@ last_eval_score: 9.0
 ## Purpose
 
 Turn raw warranty claim inputs — customer descriptions, dealer write-ups, failed-part RMAs, field-service notes, social-listening signals — into structured, auditable claim records that (a) classify the issue, (b) assign a dynamic risk score with named contributors, (c) flag fraud and anomaly patterns through a multi-signal taxonomy routed to a fraud review queue rather than denial, (d) roll up across claims to surface emerging defect clusters before they become a field campaign, (e) hand confirmed clusters off to the CAPA Document Builder's agentic-RCA workflow with a controlled-shipping-trigger evaluation, and (f) drive a six-stage forward-risk reserve model the CFO can defend at quarter close. The skill is the human-in-the-loop assistant that sits in front of auto-adjudication: it drafts the decision, cites the governing warranty clause, flags what needs an engineer, routes what crosses a lemon-law / UK CRA / EU SGD threshold to legal review, and writes the supplier-recovery SCAR when the root cause points upstream.
+
+## What This Is / Is Not
+
+- **It IS** two distinct tools sharing one taxonomy: (1) a fast **single-claim triage** that adjudicates or routes one routine claim in minutes, and (2) a heavy **portfolio/reserve analysis** that does cluster detection, emerging-issue scanning, six-stage reserve modeling, and supplier recovery across the claim population.
+- **It IS NOT** a single 14-step gauntlet you must run on every claim. The overwhelming majority of inbound claims are routine and need only the Quick Triage Pass. The full process is for when triage escalates, or when you are doing a weekly/monthly review or a quarter-close reserve update.
+- **It IS NOT** an auto-denial engine. Fraud and anomaly signals route to a review *queue*, never to denial; denial requires a cited contract exclusion.
+
+## Two-Pass Execution Model
+
+**Pass 1 — Quick Triage (single claim, minimal input, one-shot).** For one routine claim, supply only: claim ID + verbatim complaint + coverage terms in effect + failure mode + jurisdiction. Pass 1 produces, in one shot: (a) the **legal-review threshold check** (run first, always), (b) the four-axis classification, (c) a coarse risk flag (clear / needs-a-look), (d) a **preliminary disposition** from the eight-option set with the governing clause cited, and (e) an **escalation verdict** — `resolve-here` (routine, adjudicate now) or `send-to-full-pass` (cluster-suspect, fraud-signal, supplier-caused, legal-triggered, or reserve-material). Most routine claims end at Pass 1 with a defensible disposition and a customer letter.
+
+**Pass 2 — Full Analysis (portfolio / reserve, heavy input).** Run the complete process below when Pass 1 returns `send-to-full-pass`, OR when the trigger is a scheduled weekly/monthly pattern review or a quarter-close reserve review. Pass 2 owns cluster detection, the CAPA handoff payload, the emerging-issue parallel-signal scan, the six-stage reserve model, and the supplier-recovery line. Do not make a single routine claim carry the reserve-model and cluster apparatus — that is what made the old single-path version slow.
+
+### Pass 1 — Quick Triage procedure (single claim)
+
+1. **Legal-review threshold check FIRST** (see full matrix in Pass 2 step 3). If the claim crosses any US state lemon-law / UK CRA / EU SGD / BGB threshold → disposition is `Escalate-to-legal`, stop, do not draft a denial. This gate runs before anything else.
+2. **Classify** on the four axes (issue type / coverage / root-cause-owner hypothesis / customer class).
+3. **Coarse risk + fraud flag:** is there any obvious anomaly (duplicate VIN, impossible labour hours, mileage rollback, narrative mismatch)? If yes → `Escalate-to-fraud-review`. If no → continue.
+4. **Cite the governing clause** that drives coverage or the exclusion that drives denial. Uncertain → "needs legal review," never a guess.
+5. **Preliminary disposition** from the eight-option set with rationale + SLA target.
+6. **Escalation verdict:** `resolve-here` only if all of: in/out-of-warranty is clear with cited clause, no fraud signal, under legal threshold, single claim with no same-lot/same-failure history, and claim value below the reserve-material threshold. Otherwise `send-to-full-pass` and name the trigger.
+7. **Draft the customer response** for `resolve-here` claims (plain language, preferred language, cited clause if denial).
+
+If Pass 1 resolves the claim, you are done — record it and the gaps block. If it escalates, carry the Pass 1 outputs forward into Pass 2 (do not re-derive them).
 
 ## When to Use
 
@@ -56,7 +80,7 @@ You are a warranty analyst writing a claim record that will sit in the warranty 
 - Reference the dealer scorecard if provided; a claim from a low-scorecard dealer is not a reason to deny, but is a reason to inspect parts and tag with `dealer_inspection_recommended`
 - Use voice from `config.yml` → `voice` for customer-facing letters; use plant-formal voice for internal adjudication memos
 
-**Process:**
+**Process (Pass 2 — full portfolio/reserve analysis; run on `send-to-full-pass`, weekly/monthly reviews, or reserve close):**
 
 1. **Triage and SLA-stamp.** Tag the claim with `submission_channel`, `triage_owner`, `SLA_clock_start` (typically submission timestamp in customer time zone), `SLA_target` (typically 72 hours in-warranty / 5 business days out-of-warranty per `config.yml → claim_SLA`). Do not skip to disposition until triage tags are stamped — the SLA clock is the legal record.
 
@@ -190,8 +214,25 @@ You are a warranty analyst writing a claim record that will sit in the warranty 
 - **Pairs with Predictive Maintenance Report** — high-cluster-density failure modes traced to operating-context anomalies (load, temperature, duty cycle) can seed a predictive-maintenance asset-class rule on the customer-side install base, when the customer is fleet or commercial.
 - **Warranty-platform export depth** — produce export fields for: PTC ServiceMax, Syncron Warranty Management, Tavant Warranty Management, Oracle Service Cloud Warranty, IFS Field Service Management, Salesforce Field Service, **ServiceNow Manufacturing Commercial Operations Warranty Claims with AI Fraud Detection** (GA in 2026), Mize Warranty Connect, Verisk Claims Insight, Pega Customer Service for Manufacturing, IBM Maximo Service Lifecycle Manager. If the target platform is known, produce its field schema. Otherwise produce platform-neutral YAML frontmatter plus a CSV-compatible claim-record block for the warranty-platform importer.
 
+## Worked Example — Pass 1 Quick Triage (single routine claim)
+
+**Input (minimal):** Claim WC-44912; verbatim complaint "control panel display went black after 3 weeks, unit is 22 days old"; coverage = 24-month parts-and-labour, in effect; failure mode = `DISPLAY-NO-OUTPUT` (existing taxonomy code); jurisdiction = Ohio, retail consumer.
+
+**Pass 1 output (one shot):**
+
+> **1. Legal-review threshold check:** Ohio Lemon Law applies to motor vehicles; this is a consumer appliance — not in scope. Magnuson-Moss federal overlay noted, no repair-attempt history. **Threshold: not met.** Proceed.
+> **2. Classification:** issue type = malfunction (electronic); coverage = in-warranty (day 22 of 730); root-cause-owner hypothesis = supplier-or-manufacturing (display module), ambiguous pending teardown; customer class = consumer.
+> **3. Coarse risk / fraud:** no duplicate serial, no labour-hour data (customer-direct), no rollback signal, narrative internally consistent. **No fraud flag.**
+> **4. Governing clause:** §3.1 "parts and workmanship" covers electronic component failure within term; no exclusion applies (not misuse, not cosmetic). Citation clean.
+> **5. Preliminary disposition:** **Auto-approve** (in-warranty, in-coverage, no anomaly, under legal threshold). SLA target 72h. Replace display module under warranty; route failed part to RMA for teardown.
+> **6. Escalation verdict:** check the same-lot history → **one prior `DISPLAY-NO-OUTPUT` claim on this build week exists.** That is below the 3-claim lot trip-wire but is a same-failure precedent → **`send-to-full-pass`** flagged for cluster watch (do not hold the customer approval; the approval stands, the cluster question goes to Pass 2).
+> **7. Customer response (drafted):** plain-language approval, replacement scheduled, no cost to customer.
+
+The routine claim is approved and the customer letter is drafted in one pass; the single same-week precedent is the *only* thing handed to Pass 2 — the reserve model and emerging-issue scan are not invoked for a claim that adjudicated cleanly. (Had there been no same-week precedent, the verdict would be `resolve-here` and the claim would close entirely at Pass 1.)
+
 ## Success Metrics
 
+- **Quick-Triage one-shot rate** — target 60–80% of inbound routine claims fully resolved at Pass 1 (disposition + customer letter) without invoking the cluster/reserve apparatus
 - **Auto-adjudication rate** — target 60–80% of routine in-warranty / in-coverage claims handled without human-engineer touch, with monthly audit sampling
 - **Legal-review-routing accuracy** — target zero lemon-law / UK CRA / EU SGD / BGB threshold misses on closed claims (every threshold crossing routes to legal review before any denial)
 - **Average claim cycle time** — target under 72 hours from submission to disposition on in-warranty claims; under 5 business days for goodwill / out-of-warranty / escalation

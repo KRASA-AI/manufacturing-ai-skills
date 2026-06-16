@@ -4,8 +4,8 @@ category: admin
 tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~90 min/audit prep + reduced finding volume + ISO 9001:2026 / FDA QMSR / CMMC 2.0 Phase 2 transition coverage"
-version: 3.0
-last_eval_score: 9.0
+version: 4.0
+last_eval_score: 8.3
 ---
 
 # Compliance Audit Prep
@@ -13,6 +13,34 @@ last_eval_score: 9.0
 ## Purpose
 
 Turn a plant's controlled-document set, training records, prior-audit findings, and forward-look regulatory horizon into an audit-readiness report that (a) maps existing documentation to the specific standard clauses in scope, (b) flags gaps by severity (Major NC / Minor NC / Observation / OFI), (c) closes prior-cycle findings with effectiveness-verification evidence, (d) produces the objective-evidence pull list the auditor will actually request, (e) runs a mock-audit interview script set on the highest-risk clauses, (f) scripts the plant's response to "auditor catnip" questions that trip up most sites, (g) runs an explicit FDA QMSR / CMMC 2.0 Phase 2 / ISO 9001:2026 transition-readiness pre-pass for sites in those regulatory horizons, and (h) integrates ISO 27001 + ISO 42001 + CSRD / IFRS S1 / IFRS S2 overlap for the integrated-management-system audit. The output is the single artifact a quality manager takes into the pre-audit meeting and hands to the audit team on day one — and the same artifact the CB auditor will find noticeably well-prepared.
+
+## What This Is / Is Not
+
+- **It IS** a structured pre-audit gap finder and evidence-staging tool scoped to the *specific* standard(s) you have an audit booked against. Run the right pass for the right standard and it surfaces the gaps before the auditor does.
+- **It IS NOT** an "audit everything at once" exercise. The multi-standard breadth below (ISO 9001, IATF, AS9100, FDA QMSR, CMMC, OSHA, ISO 14001/45001/27001/42001, CSRD/IFRS) is a *library you route into*, not a checklist you run end-to-end. A site with one ISO 9001 surveillance booked should never touch the CMMC or QMSR passes.
+- **It IS NOT** a certification claim, a binding clause interpretation, or a substitute for the CB's own audit. It is the internal prep that makes the real audit go cleanly.
+
+## Two-Pass Execution Model
+
+This skill runs in two passes. **Most users only need Pass 1 to get value on the first run.**
+
+**Pass 1 — Scope Router + Quick-Readiness Triage (minimal input, one-shot).** Answer five questions and get a provisional readiness traffic-light plus the top gaps for the standard *actually* in scope. This is the one-shot artifact for a quality manager who wants a fast read today without assembling a full evidence library. Inputs required for Pass 1 are intentionally light (see "Pass 1 Inputs" below).
+
+**Pass 2 — Full Evidence-Anchored Prep (heavy input).** Only after Pass 1 has named the in-scope standard and the high-risk clauses do you run the full clause-by-clause evidence matrix, mock-audit script, catnip list, and transition pre-passes — and only for the standard(s) Pass 1 routed to. Pass 2 is the deep prep for T-minus-4-weeks; Pass 1 is the triage you can run cold.
+
+### Pass 1 — Scope Router (run this first, always)
+
+Ask (or read from `config.yml`) exactly these five things:
+
+1. **Which standard is the booked audit against?** (one or more of: ISO 9001:2015, IATF 16949, AS9100D, ISO 13485 / FDA QMSR, CMMC L1/L2/L3, OSHA, ISO 14001/45001/50001, ISO 27001/42001, a customer CSR audit, internal audit). → This selects the *only* clause set(s) and transition pre-pass(es) Pass 2 will run. Everything not selected is out of scope and ignored.
+2. **Audit type and date?** (certification / surveillance / recertification / customer / internal; scheduled date) → sets the timeline and depth.
+3. **When was the last management review, and does it cover the §9.3.2 nine inputs?** → the single most common Major-NC source across every QMS standard.
+4. **Any open or repeat findings from the last cycle still not closed with effectiveness verification?** → repeat findings are the highest-probability Major.
+5. **Top three "is it current?" risks** the QA manager already worries about (e.g. training-matrix vs SOP revision, calibration stickers, a recent process change not risk-assessed)?
+
+From those five answers, produce the **Quick-Readiness Triage**: a provisional traffic-light (Ready / At-Risk / Not-Ready) for the in-scope standard, the 3–6 most likely Major/Minor NC sources named, and a one-line "what to pull before Pass 2" list. Mark this output **provisional — triage only, not an evidence-verified readiness call**. If any answer reveals a systemic gap (no management review in 18+ months, an open repeat finding, a missing CAPA system), flag it At-Risk or Not-Ready immediately and name it the #1 fix.
+
+Then — and only then — route into Pass 2 for the selected standard(s) using the full process below.
 
 ## When to Use
 
@@ -58,7 +86,7 @@ You are the quality manager's AI assistant preparing the site for external audit
 - Reference the plant's internal audit plan if provided
 - Use voice from `config.yml → voice`
 
-**Process:**
+**Process (Pass 2 — full prep; run only for the standard(s) Pass 1 routed to):**
 
 1. **Map clauses in scope.** Build the clause-by-clause matrix for each standard in play.
    - **ISO 9001:2015** — clauses 4.1–4.4 (context), 5.1–5.3 (leadership), 6.1–6.3 (risk, objectives, change), 7.1–7.5 (resources, competence, awareness, communication, documented information), 8.1–8.7 (operations), 9.1–9.3 (monitoring, internal audit, management review), 10.1–10.3 (improvement)
@@ -211,8 +239,26 @@ You are the quality manager's AI assistant preparing the site for external audit
 - **Pairs with Training Plan & Skill Matrix** — training records evidence is the training-plan output; competency evaluations are the qualification matrix.
 - **QMS / EQMS platform export depth** — produce export fields for: MasterControl, ETQ Reliance, Plex Quality, Greenlight Guru, Sparta TrackWise, IQS, Veeva Vault QMS / QualityOne, AssurX, SAP QM, **ServiceNow MCO Quality Issues Management** (the latter newly added per the 2026-05-11 ServiceNow MCO GA signal), Intellect, Qualio, Arena QMS, iFactory QMS. If the target system is known, produce its document-reference format. Otherwise produce platform-neutral YAML frontmatter plus a CSV document-list block.
 
+## Worked Example — Pass 1 Scope Router (ISO 9001:2015 surveillance)
+
+**Five answers in:** (1) Standard in scope: ISO 9001:2015 surveillance only — *no IATF, no QMSR, no CMMC*. (2) Surveillance audit, CB = DEKRA, scheduled T-minus 3 weeks. (3) Last management review was 14 months ago; covers 7 of the 9 §9.3.2 inputs (missing: external-provider performance, and effectiveness of actions on risk). (4) One Minor NC from last surveillance on calibration recall not yet closed with effectiveness verification. (5) Worries: a new CMM was added in March with no risk-register entry; two operators on Line 3 trained to SOP Rev C while the SOP is at Rev D.
+
+**Quick-Readiness Triage output (provisional):**
+
+> **Standard routed:** ISO 9001:2015 surveillance. *CMMC / QMSR / IATF passes not run — out of scope.*
+> **Overall: AT-RISK (amber).**
+> Top likely findings, ranked:
+> 1. **Minor→Major risk** — last management review > 12 months **and** missing 2 of 9 §9.3.2 inputs. Surveillance auditors check MR first; an incomplete + overdue MR is a probable Major. *Fix #1: convene/supplement MR covering all nine inputs before audit.*
+> 2. **Repeat-finding risk** — prior calibration Minor NC not closed with effectiveness verification. If the auditor re-tests and it's open, it elevates. *Fix #2: close with EV evidence (re-cal record + recall-system check).*
+> 3. **Minor NC** — Line 3 training-vs-revision mismatch (Rev C training, Rev D SOP). Classic catnip. *Fix #3: retrain + record to Rev D.*
+> 4. **Minor NC** — new CMM (March) absent from §6.1 risk register / §7.1.5 monitoring-resource control. *Fix #4: add risk-register row + calibration entry.*
+> **Pull before Pass 2:** management review minutes, calibration master + the open Minor's CAPA, Line 3 training matrix, asset register entry for the new CMM.
+
+A quality manager has a defensible, prioritized action list in one pass — without assembling the full evidence library — and knows exactly which four artifacts to gather before running Pass 2's full clause matrix on ISO 9001 alone.
+
 ## Success Metrics
 
+- **Pass 1 triage time** — provisional readiness traffic-light + ranked top gaps in < 15 minutes from the five scope-router answers, no evidence library required
 - **Finding volume** — trending down across cycles; target < 3 Major NCs per external cycle and zero repeat findings
 - **Prep cycle time** — first-draft audit-readiness report in < 4 hours on a standard surveillance scope; < 8 hours for a transition-window FDA QMSR or CMMC Level 2 self-assessment audit-prep
 - **Top-20 pull-list accuracy** — > 95% of requested documents located within 5 minutes during audit
