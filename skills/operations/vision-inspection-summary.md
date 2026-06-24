@@ -4,8 +4,8 @@ category: operations
 tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~45 min/report"
-version: 3.0
-last_eval_score: 8.9
+version: 4.0
+last_eval_score: 8.2
 ---
 
 # Vision Inspection Summary
@@ -15,6 +15,22 @@ last_eval_score: 8.9
 Take the output of an automated computer-vision inspection system — pass / fail counts, defect classifications, model confidence scores, flagged images, calibration events, human-review resolutions, and model-lineage metadata — and produce a structured shift-end summary that quality and operations teams can act on within 30 minutes. The output is a confusion-matrix-anchored read of true reject vs. false reject vs. escape, a defect-class Pareto with KPC/KCC lineage and rising-trend flags, a confidence-threshold trade-off readout (PPV / NPV / recall at the operating point and at one tighter / one looser threshold), a four-source drift-detection panel (model / lighting / fixture / mix shift), a model-lineage and model-decay block, an inter-rater reliability check on the human-review queue, a retrain-trigger checklist, and a ranked list of follow-ups with named owners and target dates.
 
 The skill exists because vision systems on the line produce 10–100× more inspection events than the human eye can review unaided, and a vision system left untriaged at the end of a shift is the silent path to over-rejection (true defects mixed with false rejects driving cost-of-quality up while masking real escapes) or under-rejection (drift drags PPV down, escapes climb, the customer finds them first). Most SMB manufacturers operating CV inspection have not formalized the threshold-policy, model-decay tracking, KPC/KCC-to-defect-class lineage mapping, and drift-detection cadence that protect the system from itself. A defensible shift-end read with audited ground-truth anchors keeps the system honest, feeds the right inputs into CAPA when an escape is found, and generates the inspection-data exhibit that the Quality Report Generator consumes.
+
+## What This Is / Is Not
+
+This skill is **two tools sharing one inspection taxonomy**, not one statistics-heavy report run on every shift:
+
+- **Pass 1 — Quick Escape-Read.** A minimal-input read that needs only pass/fail counts, a defect-class breakdown, and the most recent ground-truth audit anchor (date + sample result). It returns the reject rate, a KPC/KCC-linked defect Pareto, an audit-currency flag, and a single escape-risk verdict — *resolve here* or *escalate to the full statistical pass*. Most stable shifts end here in well under 15 minutes. It deliberately does **not** require confidence histograms, inter-rater kappa, model-lineage hashes, holdout AUC, or threshold-trade tables.
+- **Pass 2 — Full statistical pass.** The complete confusion-matrix / confidence-distribution / four-source drift / inter-rater reliability / model-decay / threshold-trade / retrain-trigger / APQP-PPAP apparatus below. Run it when Pass 1 escalates: a KPC/KCC-linked escape, a reject-rate spike, a calibration/model/fixture change mid-run, an overdue audit, a retrain decision, or a PPAP submission.
+
+Pass 1 is **not** a substitute for the ground-truth audit or for the drift/decay discipline — it is the triage that decides whether this shift needs them *today*. Pass 2 is **not** the right tool for a quiet shift with a current audit anchor and no KPC/KCC movement. Run the pass the shift actually warrants.
+
+**Pass 1 escalation triggers (any one → run Pass 2):**
+1. Any KPC- or KCC-linked defect class shows an escape or a rising trend vs. the 30-day baseline.
+2. Reject rate is outside ±2σ of the 30-day baseline.
+3. A model update, lighting change, fixture change, threshold change, or mix shift happened mid-run.
+4. The most recent ground-truth audit window is > the configured cadence old (audit overdue → escape rate cannot be anchored).
+5. A retrain decision, a customer escape investigation, or an APQP/PPAP validation is the reason for the read.
 
 ## When to Use
 
@@ -58,6 +74,17 @@ You are the quality-engineering vision analyst writing the shift-end read for a 
 - Do not invent confidence values, escape counts, ground-truth audit results, model-update timestamps, inter-rater reliability scores, or holdout evaluation metrics. Cite the source; mark uncertain values "to be confirmed by quality engineer."
 
 **Process:**
+
+**Pass 1 — Quick Escape-Read (run first; needs only counts + the latest audit anchor):**
+
+- **P1a — Reject read.** From total pass / total fail: reject rate, and compare to the 30-day baseline. Flag if outside ±2σ.
+- **P1b — KPC/KCC-linked defect Pareto (coarse).** Rank the defect classes by count; tag each with its severity and KPC/KCC linkage from `config.yml → defect_taxonomy`. Flag any KPC/KCC-linked class that is present at elevated count or that the operator/downstream flagged.
+- **P1c — Audit-currency + escape anchor.** Read the most recent ground-truth audit (date, sample size, true-reject/false-reject/escape). If it is within `config.yml → ground_truth_audit_cadence`, report the anchored escape signal. If older, set **"escape not anchored — audit overdue"** (this alone escalates).
+- **P1d — Verdict.** Output one of: **"Resolve here — stable shift, audit current, no KPC/KCC movement"** (deliver the Pass-1 read and stop), or **"Escalate to Pass 2 — [trigger]"** naming which of the five escalation triggers fired. Cross-reference `config.yml → customer_csr_list`: a KPC/KCC escape on a line tied to a Ford Q1 / GM BIQS / AS9100 PPM commitment is always an escalate-and-notify, never a resolve-here.
+
+If the verdict is resolve-here, **stop** — do not run the statistical apparatus on a quiet, audit-current shift. Otherwise carry P1a–P1c forward as the headline block and run Pass 2.
+
+**Pass 2 — Full statistical pass (run on any escalation):**
 
 **Step 1 — Confusion-matrix-anchor the read.**
 
@@ -176,6 +203,24 @@ Never mix evidence anchors without labeling the mix. A PPV calculated from human
 - **Follow-up recommendations:** 1–3 items each with owner and target date
 - **Evidence-tagging index:** every quantitative claim labeled with its evidence anchor
 - **Open questions and gaps:** explicit list of unresolved items
+
+## Example Output (Pass 1 — Quick Escape-Read)
+
+> **Vision Quick-Read — WELD-1 (robotic weld cell) — 1st shift, 2026-06-22**
+> *Pass 1 triage. Escalates to full statistical pass only on a trigger.*
+>
+> **Counts:** 4,210 inspected · 4,061 pass · 149 fail → **reject rate 3.54%** (30-day baseline 3.6% ±0.5% → within band, no spike).
+>
+> | Defect class | Count | Severity | KPC/KCC | Note |
+> |---|---|---|---|---|
+> | surface-finish | 88 | major | KCC | flat vs baseline |
+> | burr | 41 | major | KCC | flat |
+> | weld-porosity | 18 | **critical** | **KPC** | **+6 vs baseline avg of 11** |
+> | coating-defect | 2 | minor | none | — |
+>
+> **Audit anchor:** last ground-truth window 2026-06-19 (3 days ago, cadence = weekly → **current**); that window showed 0 escapes on weld-porosity.
+>
+> **Verdict: ESCALATE to Pass 2 — trigger #1 (KPC-linked class rising).** weld-porosity is KPC and trending up (+55% vs baseline) on a cell feeding the Ford Q1 program (15 PPM commitment, `customer_csr_list`). Audit is current so no escape is anchored *yet*, but a rising KPC class above a 15-PPM scorecard cannot be resolved at triage. Run the full pass for the confusion-matrix anchor, confidence-distribution check (is the model getting less certain on porosity?), and the four-source drift panel (weld-spatter lighting vs fixture vs wire-lot mix). Notify quality engineer (Dana Reyes, threshold-policy owner) now.
 
 ## Anti-Patterns to Avoid
 

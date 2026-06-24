@@ -4,8 +4,8 @@ category: admin
 tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~3 hr/reporting cycle"
-version: 1.0
-last_eval_score: 8.8
+version: 2.0
+last_eval_score: 8.1
 ---
 
 # Sustainability & Emissions Report
@@ -13,6 +13,36 @@ last_eval_score: 8.8
 ## Purpose
 
 Turn raw plant utility, production, and material data into a defensible sustainability and emissions report for customers, regulators, and internal leadership. The report structures Scope 1, Scope 2, and Scope 3 emissions at a facility and product level, flags CBAM-relevant exposure on covered goods, benchmarks energy intensity per unit of output, and produces both a compliance-ready submission and a one-page leadership summary. The output is designed to stand up to third-party verification and to replace the generic industry averages that trigger punitive CBAM tariffs starting with the 2026 compliance period.
+
+## What This Is / Is Not
+
+This skill is **two tools sharing one emissions taxonomy**, not one monolithic report imposed on every request:
+
+- **Pass 1 — Quick Scope-1+2 Screen.** A config-driven first read that needs only the period, a fuel/electricity activity summary, and production output. It pre-populates emission factors, boundary, Scope 2 method, GWP set, and CBAM flag *from `config.yml`* and returns a provisional Scope 1 + Scope 2 total, an intensity-vs-prior-period delta, and a ranked list of the inputs you must still gather for a verifiable Pass 2. Use it for the quarterly leadership KPI glance, a fast answer to "where are we tracking," or to scope the work before a full close. It is an **estimate, not a submission** — every figure is labeled "screen — confirm in Pass 2."
+- **Pass 2 — Full verifiable report.** The complete Scope 1/2/3 + CBAM + reconciliation + data-quality apparatus below, run when the output must survive third-party assurance, a CBAM declaration, or a customer PCF request.
+
+Pass 1 is **not** a verifiable disclosure, does not anchor a CBAM declaration, and never substitutes for meter reconciliation. Pass 2 is **not** required for an internal glance. Pick the pass the request actually needs; do not run the full close to answer a leadership KPI question.
+
+## Config Pre-Population
+
+Before asking the user for anything, load `config.yml` and bind the following keys so the user supplies only period-specific activity data, not standing facts they have already configured:
+
+| Output field | Config key |
+|---|---|
+| Facility, establishment ID, CAGE | `company.facilities[].{name, establishment_id, cage_code}` |
+| Reporting standard(s) | `sustainability.reporting_standard` |
+| Fiscal-year boundary | `sustainability.fiscal_year` |
+| Scope 2 method (location / market / both) | `sustainability.scope2_method` |
+| Grid factor (location + market) | `sustainability.emission_factors.grid_electricity_location` / `grid_electricity_market` (sourced to `sustainability.egrid_subregion`) |
+| Fuel factors (gas, diesel, propane) | `sustainability.emission_factors.{natural_gas, diesel, propane}` |
+| GWP set (AR5 / AR6) | `sustainability.gwp_set` |
+| CBAM in scope + CN codes | `sustainability.cbam_in_scope` / `cbam_cn_codes` |
+| RECs retired, PPA status | `sustainability.recs_retired_annually_mwh` / `ppa` |
+| Prior-period intensity baseline | `sustainability.prior_year_intensity` |
+| SBTi / internal target | `sustainability.sbti_target` |
+| Utility data system (for import fields) | `sustainability.utility_data_system` |
+
+State which keys were found and which were absent. An absent key becomes a gaps-block line ("grid factor not in config — supply eGRID subregion or factor"), never a silent default. If `config.yml` is missing entirely, fall back to the full input list below and note that personalization is unavailable.
 
 ## When to Use
 
@@ -52,7 +82,19 @@ You are a sustainability analyst writing a facility-level emissions and energy r
 - Reference `knowledge-base/best-practices/` for emission-factor hierarchy (supplier-specific > regional average > national default)
 - Never substitute industry averages where meter data exists; the verifier will downgrade the assurance level
 
-**Process:**
+**Pass 1 — Quick Scope-1+2 Screen (run first unless the user explicitly asks for the full close):**
+
+The screen needs only three things beyond config: (a) the reporting period, (b) a coarse activity summary — total natural-gas therms (or the utility-bill total), total grid kWh, and any obvious diesel/propane — and (c) production output (saleable units or tons). Everything else comes from `config.yml` via the pre-population table above.
+
+1. **Bind config.** Pull boundary, standard, Scope 2 method, GWP set, grid + fuel factors, prior-period intensity, and CBAM flag from config. Name what was found vs absent.
+2. **Estimate Scope 1 + Scope 2.** Apply the configured factors to the coarse activity totals. Report a single provisional tCO2e for Scope 1 and for Scope 2 (location-based; add market-based if RECs/PPA are configured). Label every figure "screen — confirm in Pass 2."
+3. **Intensity glance.** Provisional tCO2e / unit vs the configured `prior_year_intensity` and the SBTi/internal glide path — absolute and percent delta, with an on-track / off-track flag.
+4. **CBAM exposure flag (coarse).** If `cbam_in_scope` is true, flag the configured CN-coded lines and note that any line lacking installation-specific embedded-emissions data will fall to CBAM default values in Pass 2 — name them as the highest-value gap.
+5. **Pass-2 gap list.** Rank the inputs still required for a verifiable report (sub-meter breakout, refrigerant top-ups, Scope 3 categories, REC retirement certificates, CBAM embedded direct/indirect per tonne), highest-leverage first. End with an explicit verdict: "screen sufficient for the leadership KPI ask" **or** "escalate to Pass 2 — [reason: CBAM declaration / assurance / customer PCF]."
+
+If the request is only a leadership glance and no submission clock is open, **stop here** and deliver the screen. Otherwise carry the screen forward as the skeleton and run Pass 2.
+
+**Pass 2 — Full verifiable report:**
 
 1. **Set the boundary explicitly.** Organizational boundary (operational control vs equity share vs financial control), reporting period, facilities in scope, and any exclusions with rationale. State the standard (GHG Protocol, ISO 14064-1, CBAM IR, CSRD) and the Scope 2 method (location-based, market-based, or both).
 2. **Calculate Scope 1.** Multiply each activity (fuel by fuel, refrigerant by refrigerant, process-source by source) by its emission factor. Report totals by source category and as a single tonnes-CO2e number. Include GWP set (AR5 vs AR6) used.
@@ -85,6 +127,30 @@ You are a sustainability analyst writing a facility-level emissions and energy r
 - **Do not** omit Scope 3 categories silently. Either include them with a stated method, or list them as out of scope with rationale.
 - **Do not** fabricate supplier-specific factors. If the supplier has not published a PCF, use a regional average and say so.
 - **Do not** present a reduction opportunity without a baseline, a unit, and a payback. "Reduce natural gas" is not an action.
+
+## Example Output (Pass 1 — Quick Scope-1+2 Screen)
+
+> **Emissions Screen — Summit Precision, PLANT-1 (Grand Rapids) — Q2 2026**
+> *Pass 1 quick screen. Every figure below is an estimate — confirm in Pass 2 before any disclosure, CBAM declaration, or customer PCF.*
+>
+> **Config bound:** boundary = operational control; standard = GHG Protocol + CBAM IR; Scope 2 method = both; GWP = AR6; grid factor 0.000430 tCO2e/kWh (eGRID RFCM, location) / 0.000180 (market); gas factor 0.0531 tCO2e/therm-equiv; prior-year intensity 0.0185 tCO2e/part (2025); SBTi 42% by 2030. **Absent:** sub-meter breakout, refrigerant top-ups, Scope 3 — flagged below.
+>
+> **Coarse activity supplied:** 41,000 therms gas · 1,180,000 kWh grid · 900 gal diesel (forklifts) · 612,000 saleable parts.
+>
+> | Scope | Basis | Provisional tCO2e |
+> |---|---|---|
+> | Scope 1 | gas 41,000 × 0.0531 + diesel 900 × 0.01021 | **~2,187** |
+> | Scope 2 (location) | 1,180,000 kWh × 0.000430 | **~507** |
+> | Scope 2 (market) | 1,180,000 kWh × 0.000180 (1,200 MWh REC configured) | **~212** |
+> | **Screen total (loc.)** | | **~2,694 tCO2e** |
+>
+> **Intensity glance:** ~0.0044 tCO2e/part this quarter vs 0.0185/yr prior (≈0.0046/qtr equiv) → **on glide path, ~4% under**. *Estimate — depends on unverified output count.*
+>
+> **CBAM flag:** CN 7604/7608 anodized extrusions exported to EU are in scope. No installation-specific embedded-emissions figure supplied → these lines **will fall to CBAM default values in Pass 2** unless direct/indirect per-tonne data is gathered. **Highest-value gap.**
+>
+> **Pass-2 gap list (ranked):** (1) CBAM embedded direct + indirect emissions per tonne for the four CN lines; (2) refrigerant top-ups + process sources for a complete Scope 1; (3) sub-meter split for line-level intensity; (4) REC retirement certificate serials to defend the market-based figure; (5) Scope 3 cat-1 (purchased aluminum) supplier PCFs.
+>
+> **Verdict:** Screen sufficient for the Q2 leadership KPI review. **Escalate to Pass 2 before the CBAM quarterly declaration (CBAM default-value exposure is live on the EU-bound lines).**
 
 ## Integration Notes
 

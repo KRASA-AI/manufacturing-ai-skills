@@ -4,8 +4,8 @@ category: operations
 tools: [claude, chatgpt]
 difficulty: advanced
 time_saved: "~6 hr/incident (first 24 h)"
-version: 1.0
-last_eval_score: 8.8
+version: 2.0
+last_eval_score: 8.3
 ---
 
 # OT Cybersecurity Incident Response Playbook
@@ -15,6 +15,35 @@ last_eval_score: 8.8
 Turn a suspected or confirmed cyber event on the plant floor into a structured, time-boxed response that protects life-safety, contains spread between IT and OT, preserves forensic evidence, restarts production from a known-good baseline, and meets every external notification clock the event triggers. The output is the first-24-hour brief — incident classification, containment sequence, evidence preservation list, recovery decision tree, and the four communications the event always forces (regulator, customer, insurer, workforce).
 
 The skill exists because manufacturing has been the most-attacked industry by ransomware for several consecutive years and the 2026 ransomware curve has stabilized at an "elevated new normal" rather than receding. Average total cost of a manufacturing ransomware event is in the high single-digit millions, downtime accounts for the largest share of that cost (well above the ransom demand itself), and SMB manufacturers in particular tend to discover during the event that they do not have a written playbook scoped to OT. Generic IT-side IR plans assume re-image-and-restore on endpoints; an OT response has to think about programmable logic controllers (PLCs) that cannot be re-imaged, safety-instrumented systems (SIS) that must reach safe state before isolation, and process units that take hours to bring up cleanly even after the network is restored.
+
+## What This Is / Is Not
+
+This skill is **two tools sharing one incident framework**, not one eight-block package the plant manager has to assemble at the worst possible moment:
+
+- **Pass 1 — Rapid First-Hour Triage.** A minimal-input mode for the live event, when an operations leader has ~15 minutes and partial information. It needs only the trigger, the initially affected scope, and the process state. From config it pre-loads who to call (DFIR, MSSP, carrier, OT lead) and the contractual clocks. It returns: an incident classification, the **life-safety gate** (can affected OT reach safe state before any isolation), the immediate boundary-containment action, which notification clocks have *likely* started, and the call list — and nothing else. It is built to run **partial** and be re-run as facts arrive.
+- **Pass 2 — Full first-24-hour package.** The complete classification / containment-sequence / asset-exposure / regulatory-clock / ransom-posture / recovery-baseline / restart-sequence / four-communications / incident-log apparatus below. Run it once the team is assembled and the immediate life-safety and boundary-isolation decisions are made.
+
+Pass 1 is **not** the forensic plan, the recovery plan, or the legal-classification call — it is the first-hour alignment brief that buys the time to run Pass 2 correctly. Pass 2 is **not** something to start cold while a furnace is running uncontained. In a live event, **always run Pass 1 first**, then expand to Pass 2.
+
+## Config Pre-Population
+
+Load `config.yml` so the call list and clocks are pre-filled before the event, not assembled during it:
+
+| Brief field | Config key |
+|---|---|
+| Retained DFIR + hotline | `cyber.retained_dfir` / `cyber.dfir_hotline` |
+| MSSP / SOC + hotline | `cyber.mssp_soc` / `cyber.mssp_hotline` |
+| Cyber-insurance carrier, policy, claim hotline, broker | `cyber.cyber_insurance.*` |
+| OT-monitoring platform (alert/asset schema) | `cyber.ot_monitoring_platform` |
+| IT EDR vendor | `cyber.edr_vendor` |
+| Backup vendor + restore-test posture | `cyber.backup_vendor` |
+| IT/OT segmentation pattern | `cyber.it_ot_segmentation` |
+| CMMC level / DFARS 7012 clock applicability | `cyber.cmmc_level` / `cyber.dfars_7012` |
+| Customer breach-notification clocks | `cyber.customer_breach_notification_clauses[]` |
+| CAGE code (DoD/DIBNet scope) | `company.facilities[].cage_code` |
+| Affected line safe-state context | `operations.line_cell_inventory` / `ehs.high_hazard_processes` |
+
+Name which keys were found vs absent; an absent key is a gaps-block line (e.g. "no retained DFIR in config — escalate to MSSP and stand up DFIR now"), never a silent omission.
 
 ## When to Use
 
@@ -54,7 +83,20 @@ You are the OT incident commander writing the brief that goes to the plant manag
 - Reference `knowledge-base/best-practices/` for the Purdue Reference Model zoning conventions, IEC 62443 zone-and-conduit segmentation, and the CISA #StopRansomware guide
 - Do not promise legal positions, do not commit on regulator-classification calls, and do not assess privilege — flag those for outside counsel
 
-**Process:**
+**Pass 1 — Rapid First-Hour Triage (run first in any live event; designed to run on partial information and be re-run as facts arrive):**
+
+Needs only: the trigger, the initially affected scope, and the process state. Everything about who-to-call and which-clocks comes from config.
+
+- **T1 — Classify (provisional).** Place the event in one of the six classes in step 1 below from whatever is known. Label it "provisional — reclassify as scope firms."
+- **T2 — Life-safety gate (the one gate that comes before everything).** For each affected or adjacent OT area, can the SIS / interlocked process / control loop reach safe state if its link to the controlling host is severed? Until this is answered for a running furnace, press, reactor, or robot cell (cross-ref `operations.line_cell_inventory` and `ehs.high_hazard_processes`), **do not isolate it.** Name the safe-state path or name the engineer who must confirm it.
+- **T3 — Immediate containment at the boundary.** The one safe first move is isolation at the IT/OT boundary (firewall / segment gateway per `cyber.it_ot_segmentation`), *not* at the PLC, and only where T2 is satisfied. State it as one action with an owner.
+- **T4 — Clocks likely started.** From config, list the notification clocks the event *probably* triggers (CIRCIA, DFARS 7012 if `cyber.dfars_7012`, customer clauses from `cyber.customer_breach_notification_clauses`, insurer prompt-notice) with their windows. Do **not** classify materiality or covered-incident status — flag for counsel. This is a heads-up list, not a determination.
+- **T5 — Call list (from config, now).** DFIR (`cyber.retained_dfir` + hotline), MSSP/SOC, cyber-insurance carrier claim hotline + broker, OT lead, plant manager. Output as a call-now list with numbers.
+- **T6 — Verdict.** "First-hour triage complete — life-safety [confirmed/pending], boundary isolation [done/blocked-on], calls placed: [...]. Expand to Pass 2 once the response team is assembled." Re-run Pass 1 if scope materially changes before the team convenes.
+
+Run Pass 1, deliver it, place the calls — then expand into Pass 2. Do not begin the full package cold while T2 is unresolved.
+
+**Pass 2 — Full first-24-hour package:**
 
 1. **Classify the incident.** Triage to one of: (a) confirmed ransomware encryption underway, (b) ransom note with no confirmed encryption (extortion-only / data-theft), (c) suspected unauthorized access without encryption, (d) malware detection with no confirmed lateral movement, (e) unauthorized PLC programming or change-control violation, (f) supply-chain compromise (vendor remote-access tooling, software update). The class determines the containment sequence.
 2. **Set life-safety as the gating constraint.** Before isolating anything, confirm that any safety-instrumented system (SIS), interlocked process, or supervisory control loop can reach safe state if the link to the controlling host is severed. Cutting a network on a running furnace, press, reactor, or robot cell without a safe-state plan is itself an incident. Document the safe-state path per affected area.
@@ -93,6 +135,27 @@ You are the OT incident commander writing the brief that goes to the plant manag
 - **Do not** rely on a ransom note's claim of data exfiltration. Confirm or refute through telemetry; the customer-notification posture changes materially based on whether data left the environment.
 - **Do not** restart a regulated production line (FDA, AS9100, IATF, 21 CFR Part 11) without a documented release-to-production check on first articles and a documented batch-record reconciliation.
 - **Do not** invent regulator names, statute numbers, clock thresholds, or breach-notification windows. Cite the specific clock and tag it as "to be confirmed by counsel" if the trigger condition is uncertain.
+
+## Example Output (Pass 1 — Rapid First-Hour Triage)
+
+> **OT Incident — Rapid Triage — Summit Precision, PLANT-1 — 2026-06-22 14:18**
+> *First-hour triage on partial information. Provisional. Re-run as scope firms; expand to Pass 2 once the team is assembled.*
+>
+> **Trigger:** Dragos high-severity alert — unauthorized engineering session + lateral movement from the historian VLAN toward the MILL-1 cell, 14:06. Reported by Arctic Wolf SOC.
+> **Affected scope (initial):** historian (Ignition), one engineering workstation; MILL-1 / WELD-1 cells *suspected adjacent*, unconfirmed.
+> **Process state:** MILL-1 running an MTO aerospace lot; WELD-1 robotic cell running. Both safety-critical.
+>
+> **T1 — Classification (provisional):** (c) suspected unauthorized access without confirmed encryption, with (e) unauthorized-PLC-programming risk given the engineering-session signal. Reclassify as scope firms.
+>
+> **T2 — LIFE-SAFETY GATE:** WELD-1 robot cell and MILL-1 are running. **Do NOT isolate either until safe-state is confirmed.** Owner: controls engineer (on-shift) to confirm both can reach safe state on link-loss within 10 min. Press/oven not in scope.
+>
+> **T3 — Immediate containment:** Isolate the historian VLAN at the IT/OT DMZ firewall (Purdue-aligned, per config) — boundary block, **not** at the PLC. Owner: IT lead. Pre-req: T2 confirmed for any cell downstream of the block.
+>
+> **T4 — Clocks likely started (heads-up, not determinations — counsel decides):** DFARS 252.204-7012 72h DIBNet (CAGE 9XK21, CUI possible on the aero lot); Ford Q1 24h + Aerospace Prime 72h customer clauses; Coalition prompt-notice. CIRCIA — flag for counsel.
+>
+> **T5 — Call now:** Mandiant DFIR +1-800-555-0199 (1-hr SLA) · Arctic Wolf SOC +1-800-555-0142 · Coalition claim +1-833-555-0188 (broker: Marsh) · OT lead · plant manager.
+>
+> **T6 — Verdict:** Triage complete — life-safety **pending** (controls engineer confirming), boundary isolation **staged** (blocked on T2), calls **placed**. Expand to Pass 2 on team assembly; re-run triage if MILL-1/WELD-1 confirmed in scope.
 
 ## Integration Notes
 
