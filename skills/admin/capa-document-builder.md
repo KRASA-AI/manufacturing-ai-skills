@@ -4,7 +4,7 @@ category: admin
 tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~75 min/CAPA"
-version: 3.0
+version: 4.0
 last_eval_score: 9.0
 ---
 
@@ -32,6 +32,80 @@ Use this skill whenever a non-conformance, customer complaint, audit finding, in
 - Medical-device 21 CFR 820.198 complaint requiring CAPA
 - AS9100 §10.2 nonconformity, including ARP 5089-style escape-prevention triggers
 - Recurring scrap on the same characteristic, line, or shift exceeding control-plan reaction-plan threshold
+
+## Two-Pass Model
+
+This skill runs in two passes so the record can be **opened in minutes and completed as the investigation matures**, instead of stalling because the full 13-section 8D apparatus demands ten input categories the moment a non-conformance lands.
+
+- **Pass 1 — Quick CAPA Initiation (D0–D3).** Minimal input: the trigger, a factual problem description, and what was already done on the floor. Returns the controlled-document header, a first-cut IS/IS-NOT skeleton, the containment table, the KPC/KCC and customer-CSR notification clocks that *just started*, and a ranked Pass-2 gap list. Built to open the record and stop escapes **before** root cause is known. This is the pass to run during the first hour of a customer complaint or a major NCR.
+- **Pass 2 — Full CAPA (D4–D8).** The complete 13-section record below: separated occurrence/detection root cause, matched corrective and preventive actions, read-across, the effectiveness-verification plan, the controlled-document update set, and closure. Run it as RCA data arrives — it inherits everything Pass 1 already captured.
+
+**Use Pass 1 when** the clock is running and you need a defensible record open *now* (customer CSR containment-certification clocks are typically 24h notification / D3 in 3 days). **Skip to Pass 2 when** containment is already complete and root-cause data is in hand. Pass 1 is explicitly allowed to run partial — every unknown is marked `TO BE COMPLETED`, never fabricated — and is designed to be re-run as facts arrive.
+
+### Pass 1 — Quick CAPA Initiation (run on three inputs)
+
+Required to start: (1) **Trigger** (complaint / NCR / audit / supplier-8D / safety / vision-alarm / warranty-cluster / OT-cyber ID), (2) **Problem description** (what / where / when / how many / how detected — operator or customer verbatim preserved), (3) **Immediate actions already taken** (or "none yet").
+
+Pass 1 returns, from config plus those three inputs only:
+
+```
+QUICK CAPA INITIATION — D0–D3
+
+CAPA No:        [CAPA-YYYY-NNNN per config tools.qms doc numbering — provisional]
+Title:          [failure mode + part family]
+Status:         Open — Containment in progress
+Severity (prov):[Critical / Major / Minor — from config.quality.defect_taxonomy severity if the class matches; else TO BE COMPLETED]
+Customer CSR:   [matched from config.customer_csr_list by affected program → notification clock]
+Trigger:        [...]            Opened: [date]   D3-due: [Opened + CSR containment window]
+
+PROBLEM (IS / IS-NOT — first cut)
+  As reported (verbatim): "[unchanged]"
+  IS:     what / where (config.operations.line_cell_inventory) / when / how much / how detected
+  IS NOT: [leave as TO BE COMPLETED if not yet verified — do not guess]
+
+KPC/KCC FLAG: [if the affected characteristic maps to a config.quality.defect_taxonomy KPC ◆ / KCC ▲ class, surface it now — it drives the PPM-commitment clock]
+
+CONTAINMENT (D3) — minimum set, expand in Pass 2
+  | # | Action | Scope | Owner | Started | Evidence |
+  (quarantine WIP · sort-and-certify outbound · 100% screen at detection point ·
+   notify customer if CSR clock applies · secure stock at customer plant)
+
+CLOCKS THAT JUST STARTED
+  - Customer notification: [config.customer_csr_list clock for the matched program]
+  - Regulatory (if FDA/NHTSA/FAA/OSHA in play): [statutory clock]
+  - Internal D3 containment-certification: [date]
+
+PASS-2 GAP LIST (what Full CAPA still needs)
+  1. Occurrence + detection root cause (D4) — not started
+  2. Matched corrective/preventive actions (D5–D7)
+  3. Effectiveness-verification plan (metric/threshold/sample)
+  4. Controlled-document update set (D7)
+  5. Related-history pull (12–24 mo, same part family/process/supplier)
+```
+
+Five escalation triggers that mean **do not stop at Pass 1 — go to the full record promptly**: (a) any KPC/KCC characteristic or active customer-CSR PPM escape; (b) severity Major/Critical; (c) any regulatory notification clock (FDA / NHTSA / FAA / OSHA); (d) ≥2 occurrences of the same failure mode in 12 months; (e) a customer-driven 8D is owed. Absent all five, a minor internal NCR may legitimately close on a lightweight Pass-1-plus-RCA record.
+
+## Config Pre-Population
+
+Bind these `config.yml` keys so standing facts are never re-asked each CAPA. Where a key resolves, fill the field from config and mark it `[from config]`; where it does not, fall back to `TO BE COMPLETED`.
+
+| Output field | Config key |
+|---|---|
+| CAPA numbering convention | `tools.qms` (e.g. ETQ Reliance) + doc-numbering convention |
+| QMS export target | `tools.qms` → QMS-platform export format section |
+| Applicable standards / framework default | `quality.certifications` (ISO 9001 / IATF 16949 / AS9100D …) → 8D default for IATF/AS customers |
+| Characteristic KPC/KCC + severity | `quality.defect_taxonomy[].kpc_kcc` / `.severity` |
+| Customer CSR + PPM commitment + notification clock | `customer_csr_list[]` (scorecard, ppm_commitment, portal) |
+| Affected line/cell + criticality | `operations.line_cell_inventory[]` |
+| Threshold / disposition owner | `quality.threshold_policy_owner` |
+| Calibration band (measurement-integrity CAs) | `quality.calibration_band` |
+| Supplier mirror-CAPA routing | `supply_chain.tiered_suppliers[]` (origin, single_source, criticality) |
+| EHS approver (safety-linked) | `ehs.ehs_lead` |
+| IT/OT handler (cyber-linked) | `cyber` block (retained_dfir, ot_monitoring_platform) |
+| Operator requalification system | `workforce.training_records_system` |
+| Voice / signature on customer-facing 8D | `voice.signature_block` |
+
+For the example config (`Summit Precision`), a weld-porosity escape auto-resolves to: framework **8D** (IATF 16949 + AS9100D customers), characteristic **weld-porosity → KPC ◆, critical**, affected cell **WELD-1 (critical)**, customer **Ford Q1 (PPM commitment 15, Covisint/QPMT portal, 24h notification)**, QMS export **ETQ Reliance**, requalification via **ETQ Reliance training module** — none of which the user re-enters.
 
 ## Required Input
 
@@ -465,4 +539,52 @@ From `config.yml → qms_platform`, structure the output for native upload:
 
 ## Example Output
 
-> [This section will be populated by the eval system with a reference example. For now, run the skill with sample input to see output quality.]
+**Worked Pass-1 Quick CAPA Initiation** (example config: Summit Precision Components; three inputs supplied — trigger, problem description, immediate actions):
+
+> *Input — Trigger:* "Ford program return, QPMT portal claim #FR-26-0418." *Problem:* "Customer reports weld porosity on bracket assy P/N 44-2207 found at their incoming dock; 3 of a 480-pc lot rejected; detected by customer incoming X-ray." *Immediate actions:* "Quarantined remaining 477 at our dock; verbally notified Ford SQE."
+
+```
+QUICK CAPA INITIATION — D0–D3
+
+CAPA No:        CAPA-2026-0146  (provisional, ETQ Reliance numbering)
+Title:          Weld porosity — bracket assy 44-2207 (Ford program)
+Status:         Open — Containment in progress
+Severity (prov):Critical   [from config: weld-porosity → KPC ◆, critical]
+Customer CSR:   Ford Q1 — PPM commitment 15; portal Covisint/QPMT; notification clock 24h
+Trigger:        Ford QPMT claim #FR-26-0418     Opened: 2026-06-29   D3-due: 2026-07-02
+
+PROBLEM (IS / IS-NOT — first cut)
+  As reported (verbatim): "weld porosity on bracket assy P/N 44-2207 found at incoming dock;
+    3 of 480 rejected; customer incoming X-ray."
+  IS:     weld porosity · WELD-1 robotic weld cell (critical) · lot of 480 ·
+          3 confirmed reject / 477 in containment · detected at CUSTOMER incoming X-ray
+  IS NOT: TO BE COMPLETED — other lots, other weld stations, other part numbers
+          not yet verified clear
+
+KPC/KCC FLAG: weld-porosity = KPC ◆ (critical). Escape against Ford Q1 PPM-15 commitment →
+  controlled-shipping risk; PPM-commitment clock active.
+
+CONTAINMENT (D3)
+  | # | Action                              | Scope      | Owner        | Started    | Evidence       |
+  | 1 | Quarantine remaining lot at dock    | 477 pc     | TO COMPLETE  | 2026-06-29 | hold tag #__   |
+  | 2 | Sort-and-X-ray outbound + WIP       | TO COMPLETE| TO COMPLETE  | —          | sort record #  |
+  | 3 | Notify Ford SQE (formal, portal)    | Ford, QPMT | Supplier QE  | 2026-06-29 | QPMT ref #__   |
+  | 4 | Secure stock at Ford incoming       | TO COMPLETE| Ford SQA     | —          | customer hold  |
+
+CLOCKS THAT JUST STARTED
+  - Ford Q1 notification: 24h (formal portal entry due 2026-06-30)
+  - Internal D3 containment certification: due 2026-07-02
+  - Regulatory: none (no safety/recall implication identified yet — confirm in Pass 2)
+
+PASS-2 GAP LIST
+  1. Occurrence + detection root cause (D4) — why porosity produced AND why our EOL did not
+     catch it (customer caught it = a detection escape, scored separately)
+  2. Matched corrective/preventive actions (D5–D7); weld-parameter + shielding-gas review
+  3. Effectiveness-verification plan (X-ray reject rate / consecutive lots / window)
+  4. Controlled-document set: WELD-1 control plan, PFMEA (RPN), weld WI, vision/X-ray threshold
+  5. Related history: prior weld-porosity NCRs/CAPAs on this family (12–24 mo)
+```
+>
+> Escalation check: KPC ◆ + Critical severity + customer-CSR PPM escape + customer-owed 8D → **four of five triggers fire; proceed to Full CAPA (Pass 2) immediately.** The record is open, containment is staged, and the Ford 24h clock is captured — within minutes of the claim landing, before root cause is known.
+
+For a complete Pass-2 record, run the 13-section process above; Pass 1 fields carry forward unchanged.

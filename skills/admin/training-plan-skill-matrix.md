@@ -4,8 +4,8 @@ category: admin
 tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~6 hr/operator (onboarding plan + qualification card + recert schedule)"
-version: 1.0
-last_eval_score: 8.9
+version: 2.0
+last_eval_score: 8.3
 ---
 
 # Training Plan & Skill Matrix Generator
@@ -30,6 +30,59 @@ Use this skill when:
 - **A process change, equipment swap, or revised work instruction** is rolled out and every operator running that station needs a re-qualification with a fresh observation card
 - **A workforce planning cycle** is being run — typically with a 12 / 24 / 36-month horizon — and the operations leader needs a view of where qualification supply is short of staffing demand
 - **A grant, apprenticeship, or workforce-development application** (DOL Registered Apprenticeship, state CTE, NIMS / SME / AWS / NTPC, MEP) requires a documented training plan with measurable competencies
+
+## Two-Pass Model
+
+The full deliverable below — a population-wide ILUO matrix, per-operator 30/60/90 plans, a recertification calendar, and a clause-mapped audit-evidence cross-reference — needs the entire roster, the full task/station inventory, per-task competence requirements, and the existing-records pull before any output. That is correct for an audit-prep package, but it is far too much input for the most common real question: *"where am I exposed on the roles that would actually stop the line, and what recert is about to lapse?"* This skill therefore runs in two passes.
+
+- **Pass 1 — Quick Critical-Role Gap Scan.** Minimal input: the roster (names + primary station) and existing records, scanned against `config.workforce.critical_roles`. Returns a single-point-of-failure (SPOF) flag on each critical role, the recert items due this quarter on those roles, and the explicit list of which roles/operators need the full Pass-2 matrix. Built to run from config plus a roster export, before the full task inventory is assembled.
+- **Pass 2 — Full Competence Package.** The complete 10-step process below: full ILUO matrix, per-operator plans, recertification calendar, audit-evidence cross-reference, gap-and-priority block, and the communications set. Run it when an audit is scheduled, a new program launches, or Pass 1 surfaces a critical-role gap that needs a defensible re-qualification plan.
+
+**Use Pass 1 when** you need a fast exposure read — a staffing-risk check before a build campaign, a "are we covered on the welders this weekend" question, or a pre-audit smoke test. **Skip to Pass 2 when** the auditor is booked or a CSR review demands the full matrix. Pass 1 never invents an evidence anchor — an operator without a `3+` artifact on file is a `0`/`1` and a gap-block line, exactly as in the full pass.
+
+### Pass 1 — Quick Critical-Role Gap Scan (run on roster + config)
+
+Required to start: (1) **Roster** — operator names/IDs + primary station/shift; (2) **Existing records** — whatever qualification evidence is on file (LMS export, observation cards, prior matrix). Scanned against `config.workforce.critical_roles` and `config.workforce.shift_pattern`.
+
+Pass 1 returns:
+
+```
+QUICK CRITICAL-ROLE GAP SCAN — [site / date]
+Critical roles (from config.workforce.critical_roles):
+
+  | Critical role                         | Qualified (3+) | Per shift | SPOF? | Recert due ≤90d |
+  | CNC programmer (5-axis)               | 2              | 1 / 1     | YES   | —               |
+  | Quality engineer / APQP lead          | 1              | 1 / 0     | YES   | 1 (ISO §7.2)    |
+  | Certified welder (AWS D1.1 / D17.1)   | 4              | 2 / 2     | no    | 2 (AWS renewal) |
+  | Maintenance technician (controls)     | 1              | 1 / 0     | YES   | —               |
+
+SPOF on critical roles: [count] — [list with days-of-cover risk]
+Recert due this quarter on critical roles: [count] — [list with governing standard]
+
+ESCALATE TO FULL PASS 2 (these need the full matrix + per-operator plan):
+  - [role/operator] — [trigger: SPOF on CSR/OSHA-tied task, overdue recert on active operator, etc.]
+```
+
+Five escalation triggers that force a full Pass 2: (a) a SPOF on any critical role tied to a **customer CSR or OSHA standard**; (b) an **overdue recert on an operator currently running the task** (a Major finding — the default is drop one tier and pull off schedule); (c) a **scheduled audit or CSR review**; (d) a **new station/program** with no matrix rows; (e) an **incident/NCR/8D root-caused to qualification**. With none firing, the scan plus a watch-list may suffice until the next cycle.
+
+## Config Pre-Population
+
+Bind these `config.yml` keys so site-standing facts are not re-asked each run. This is the personalization lever — with these bound, the matrix is graded against a real configured workforce, not generic placeholders:
+
+| Output field | Config key |
+|---|---|
+| Critical-role SPOF target list | `workforce.critical_roles` |
+| Per-shift redundancy basis | `workforce.shift_pattern` |
+| Population denominator (coverage %) | `workforce.total_size` / `workforce.direct_labor` |
+| Union-clause training/seniority handling | `workforce.union` |
+| LMS / training records system + import fields | `workforce.training_records_system` |
+| Standards in scope (audit-evidence map) | `quality.certifications` (ISO 9001 / IATF 16949 / AS9100D …) |
+| Customer CSRs in scope | `customer_csr_list[]` (scorecards) |
+| Safety-critical task set (OSHA training drivers) | `ehs.high_hazard_processes` |
+| CMMC awareness/role-based training rows | `cyber.cmmc_level` / `dfars_7012` |
+| Site / facility scope | `company.facilities[]` |
+
+For the example config (`Summit Precision`), Pass 1 auto-loads the four critical roles (**5-axis CNC programmer, QE/APQP lead, AWS D1.1/D17.1 welder, controls maintenance tech**), scores redundancy against the **2-shift pattern**, pulls records from **ETQ Reliance (training module)**, maps audit evidence to the held **ISO 9001 / IATF 16949 / AS9100D** certs and the **Ford Q1 / GM BIQS / AS9100** CSRs, treats the **robotic weld cell, press brake, powder-coat oven, anodize line** as the OSHA high-hazard training set, and adds **CMMC Level 2** awareness/role-based training rows — none of which the user re-enters.
 
 ## Required Input
 
@@ -111,3 +164,37 @@ You are a training-system manager and ISO §7.2 owner producing a defensible com
 - **Cross-training depth:** target ≥2 operators at level `3+` per shift on every safety-critical and quality-critical task
 - **Incident root-cause attribution to "operator not qualified":** target zero recordable, near-miss-with-SIF-precursor, or customer-complaint events with this primary root cause within four reporting cycles
 - **Population coverage:** target 100% of active operators on the matrix within 30 days of hire, including temps and contractors performing in-scope work
+
+## Example Output
+
+**Worked Pass-1 Quick Critical-Role Gap Scan** (example config: Summit Precision; input = 96-direct-labor roster export + ETQ Reliance records, scanned against `config.workforce.critical_roles`):
+
+```
+QUICK CRITICAL-ROLE GAP SCAN — Summit Precision (Plant-1 + Plant-2), 2026-06-29
+Critical roles (from config.workforce.critical_roles); redundancy vs 2-shift pattern:
+
+  | Critical role                         | Qualified (3+) | Per shift (1st/2nd) | SPOF? | Recert due <=90d        |
+  | CNC programmer (5-axis)               | 2              | 1 / 1               | YES   | —                       |
+  | Quality engineer / APQP lead          | 1              | 1 / 0               | YES   | ISO 9001 §7.2 internal  |
+  | Certified welder (AWS D1.1 / D17.1)   | 5              | 3 / 2               | no    | 2 welders — AWS renewal |
+  | Maintenance technician (controls)     | 1              | 1 / 0               | YES   | —                       |
+
+SPOF on critical roles: 3 of 4
+  - 5-axis CNC programmer: 1 per shift, no backup on either — a single absence on 2nd shift
+    stops MILL-1/MILL-2 (critical/major cells). Days-of-cover risk: HIGH.
+  - QE / APQP lead: zero qualified on 2nd shift — APQP/PPAP sign-off (Ford Q1, AS9100) cannot
+    be covered if the 1st-shift lead is out. Tied to customer CSR -> Major exposure.
+  - Controls maintenance tech: 1 total, 2nd shift uncovered — breakdown response on the
+    robotic weld cell (high-hazard) depends on one person.
+
+Recert due this quarter on critical roles: 3
+  - 2 welders (AWS D1.1/D17.1 continuity log overdue within 60 d) — Minor unless running.
+  - QE internal §7.2 competence re-confirmation due.
+
+ESCALATE TO FULL PASS 2:
+  - QE / APQP lead — trigger (a): SPOF on a customer-CSR-tied role (Ford Q1 + AS9100). Build the
+    full matrix + a cross-training plan to qualify a 2nd-shift APQP backup.
+  - Controls maintenance tech — trigger (a): SPOF on a high-hazard-process support role.
+```
+>
+> The scan ran from the **config critical-role list + a roster export** — no full task inventory, no per-task competence build — yet surfaced three line-stopping SPOFs and the CSR-tied exposure that ranks first for the full Pass 2. Run the 10-step process above on the two escalated roles to produce the defensible matrix, per-operator cross-training plans, and the §7.2 audit-evidence cross-reference.

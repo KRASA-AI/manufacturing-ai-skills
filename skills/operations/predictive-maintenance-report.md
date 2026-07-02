@@ -4,8 +4,8 @@ category: operations
 tools: [claude, chatgpt]
 difficulty: intermediate
 time_saved: "~45 min/report + avoided-breakdown hours + shift-handoff alarm-row pull-through"
-version: 3.0
-last_eval_score: 9.0
+version: 4.0
+last_eval_score: 8.7
 ---
 
 # Predictive Maintenance Report
@@ -29,6 +29,61 @@ Use this skill any time condition data needs to be turned into a maintenance dec
 - **Reliability-program maturity assessment** — quarterly or semi-annual review of the program's own KPI set (sensor coverage, alert precision, save-event documentation, PM-task retirement, breakdown-rate trending)
 
 This skill is explicitly a **decision-support** report. It does not auto-release work orders and does not replace a reliability engineer's read on a waveform — it sits between the sensor output (and the vendor AI/ML classifier output) and the planner's weekly meeting.
+
+## Two-Pass Model
+
+The full report below is a 13-step, seven-modality artifact that assumes a complete condition-monitoring route is already in hand. That is the right depth for the weekly PdM review — but it is too heavy when someone needs a fast read on "which assets should I worry about this week" before the full vibration/oil/IR/MCSA route data is collected. This skill therefore runs in two passes.
+
+- **Pass 1 — Quick Failure-Risk Screen.** Minimal input: a coarse asset list (tag + class + criticality), last-PM / last-overhaul dates, and **one** available signal per asset (a single vibration overall, an oil flag, a thermography ΔT, a run-hours-since-overhaul number, *or* a vendor AI/ML alert). Returns a G/Y/O/R triage, the top-3 actionable assets, a provisional disposition band, and the explicit list of which assets must go to the full Pass 2. Built to run on whatever data exists right now.
+- **Pass 2 — Full PdM Report.** The complete seven-modality decision artifact below: modality rubric, AI/ML adversarial agreement check, RUL P-F bands, 5×5 risk scoring, PM-program add/tighten/relax/retire, spare-parts pull list, reliability-program maturity KPIs, and the shift-handoff alarm rows. Run it on the assets Pass 1 escalated, not the whole plant.
+
+**Use Pass 1 when** you have a coarse fleet view but not a full route — a Monday triage, a new-route first look, or a "is anything about to bite us before the shutdown" check. **Skip to Pass 2 when** the full multi-modality route is already collected on the assets of concern. Pass 1 never recommends a teardown on one reading — its strongest output is "inspect to confirm" or "collect the full route" (see escalation triggers).
+
+### Pass 1 — Quick Failure-Risk Screen (run on three coarse inputs)
+
+Required to start: (1) **Asset list** — tag, class, criticality tier (from `config.operations.line_cell_inventory` / asset registry); (2) **Last-PM / last-overhaul date** (or run-hours since overhaul); (3) **One signal per asset** — any single modality reading *or* a vendor AI/ML alert class.
+
+Pass 1 returns:
+
+```
+QUICK FAILURE-RISK SCREEN — [date / route]
+
+Asset triage (G/Y/O/R):
+  | Asset tag | Class | Crit | One signal (what)      | Tag | Provisional disposition     |
+  | WELD-1    | robot weld cell | critical | "Augury class-2 bearing wear" | O | Inspect to confirm — collect full route |
+  | MILL-1    | 5-axis spindle  | critical | "vib overall 4.1 mm/s, was 2.8" | O | Trend up — full route Pass 2 |
+  | LASER-1   | fiber laser     | major    | "last PM 95 days, cadence 90" | Y | PM overdue — schedule |
+
+Top-3 actionable (criticality × signal):
+  1. [asset] — [one-line why]
+  2. ...
+Provisional avoided-breakdown note: [modelled, not booked — coarse]
+
+ESCALATE TO FULL PASS 2 (these assets need the seven-modality read):
+  - [asset] — [trigger that fired]
+```
+
+Five escalation triggers that force a full Pass 2 (never resolve a teardown at the screen): (a) any **critical-tier** asset tagged O or R; (b) a **trend** signal (this reading worse than the last) on any asset; (c) a vendor **AI/ML alert** that has not had the physics-grounded second read; (d) a single reading already in **ISO 20816 zone C/D** or an IR ΔT > 20 °C / oil water > 200 ppm; (e) any asset inside a **committed production campaign** where an outage is unacceptable. An asset with none of the five and a clean single signal may legitimately stay at "monitor — no dispatch" on the screen alone.
+
+Pass 1 inherits every anti-pattern below — most importantly: **do not alarm on a single reading**, and **do not accept an AI/ML alert without the physics check** (in Pass 1 an un-checked AI/ML alert is an automatic "inspect to confirm / escalate," never a dispatch).
+
+## Config Pre-Population
+
+Bind these `config.yml` keys so the standing fleet and platform facts are not re-asked each route:
+
+| Output field | Config key |
+|---|---|
+| Asset list + criticality tiering | `operations.line_cell_inventory[]` (id, criticality) + asset registry |
+| OEE / availability targets (consequence weighting) | `operations.oee_targets` |
+| CMMS reorder payload target | `tools.cmms` (e.g. Fiix) |
+| Historian / data source | `tools.historian` (e.g. Ignition) |
+| AI/ML alert provenance vendors | PdM sensor-vendor list (config / asset registry) |
+| Spare-parts ABC + OEM lead-time | `spare_parts_ABC` / `OEM_vendor_matrix` (if present) |
+| Shift-handoff alarm-row routing | `operations.line_cell_inventory` tag match → Shift Handoff Report |
+| Maintenance-tech-facing summary language | `voice` / `language_profile` |
+| High-hazard assets (consequence escalation) | `ehs.high_hazard_processes` |
+
+For the example config (`Summit Precision`), the critical-tier assets that auto-populate the screen are **WELD-1 (robotic weld cell)** and **MILL-1 (5-axis mill cell A)**; CMMS reorder payloads target **Fiix**; condition data sources resolve to **Ignition** historian; and any O/R disposition on WELD-1 or MILL-1 auto-routes a shift-handoff alarm row — none re-entered each cycle.
 
 ## Required Input
 
@@ -190,3 +245,35 @@ You are a reliability engineer writing a weekly PdM report that the maintenance 
 - **AI/ML alert calibration** — vendor AI/ML alert precision and recall tracked per asset class per quarter; precision target ≥ 0.75 and recall ≥ 0.7 at the calibrated threshold; results feed back to the vendor as part of the contract review
 - **Report cycle time** — under 2 hours from route completion to published report for the weekly PdM review
 - **Reliability-program maturity** — six-stage assessment tracked quarter-over-quarter; the program's own KPI distinct from individual-asset health
+
+## Example Output
+
+**Worked Pass-1 Quick Failure-Risk Screen** (example config: Summit Precision; Monday triage, partial data — one signal per asset, full route not yet collected):
+
+```
+QUICK FAILURE-RISK SCREEN — 2026-06-29, Plant-1 critical-asset Monday read
+
+Asset triage:
+  | Asset tag | Class            | Crit     | One signal (what)                       | Tag | Provisional disposition          |
+  | WELD-1    | robotic weld cell| critical | Augury Halo "bearing wear class 2", no physics check yet | O | Inspect to confirm — collect full route |
+  | MILL-1    | 5-axis spindle   | critical | vib overall 4.1 mm/s (was 2.8 last route)| O  | Trend up — escalate to Pass 2     |
+  | TURN-1    | turning cell     | major    | oil Fe 18 ppm, baseline ~12              | Y  | Watch — resample with hours-on-oil context |
+  | LASER-1   | fiber laser      | major    | last PM 95 d (cadence 90 d)              | Y  | PM overdue — schedule, not condition-driven |
+  | BRAKE-1   | press brake line | standard | IR delta-T +6 C on motor                 | G  | Monitor — within normal           |
+
+Top-3 actionable (criticality x signal):
+  1. MILL-1 — 5-axis spindle vibration up 46% route-over-route; critical-tier constraint cell.
+  2. WELD-1 — vendor AI flagged bearing wear class 2; un-verified by physics -> inspect-to-confirm.
+  3. LASER-1 — time-based PM overdue (administrative, not a failure signal).
+
+Provisional avoided-breakdown note: MILL-1 unplanned spindle loss ~ constraint stop —
+  modelled, not booked; coarse — confirm in Pass 2.
+
+ESCALATE TO FULL PASS 2:
+  - MILL-1 — triggers (a) critical-tier O + (b) trend signal. Collect FFT (1x/2x, bearing
+    defect freqs), oil sample, and axial/radial vib for the seven-modality read.
+  - WELD-1 — trigger (c) un-checked AI/ML alert on a critical asset. Pull the waveform and an
+    oil sample to run the physics-vs-ML agreement check before any work order.
+```
+>
+> Note how the screen ran on **one signal per asset** plus criticality and last-PM dates — no full route — yet correctly separated a genuine trend (MILL-1) from an administrative PM-overdue (LASER-1) from a vendor alert that must not be actioned without the physics check (WELD-1). Neither critical asset is dispatched for teardown on the screen; both are escalated to Pass 2. Run the full seven-modality process above on the two escalated assets.
